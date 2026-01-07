@@ -2,7 +2,6 @@ import type { Route } from "./+types/home";
 import { Contacts, HeadingMedium, RoundButtonSection, SplashScreen } from "../components";
 import { useContactStore } from "~/zustand/contactStore";
 import { useEffect, useState } from "react";
-import type { Contact } from "~/types/contact";
 import '../app.css'
 
 export function meta({ }: Route.MetaArgs) {

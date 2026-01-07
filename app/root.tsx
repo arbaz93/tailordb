@@ -34,7 +34,6 @@ export const links: Route.LinksFunction = () => [
 export function Layout({ children }: { children: React.ReactNode }) {
   const hydrate = useColorSchemeStore((s) => s.hydrate);
   const colorScheme = useColorSchemeStore((s) => s.colorScheme);
-  const setAllContacts = useContactStore((s) => s.setAllContacts);
   const [fetchStatus, setFetchStatus] = useState<any>({
     status: 100,
     statusText: ''
@@ -55,7 +54,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   
         if (res?.data) {
           console.log(res.data);
-          setAllContacts(res.data ?? []);
         }
   
         setFetchStatus({

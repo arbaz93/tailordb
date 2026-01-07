@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { createContactIndex } from "~/lunr/lunrFunctions";
-import { useLunrIndexStore } from '~/zustand/lunrIndexStore';
+import { useContactStore } from '~/zustand/contactStore';
+
 const API_URL: string = import.meta.env.VITE_SERVER_LINK;
 
 interface CustomError extends Error {
@@ -8,12 +9,16 @@ interface CustomError extends Error {
 }
 
 async function getContacts() {
+  const { setAllContacts, setContactLoadStatus } = useContactStore.getState();
   try {
     // ✅ Access Zustand store WITHOUT a hook
-    const { setIndex } = useLunrIndexStore.getState();
+    const { setIndex } = useContactStore.getState();
+    setContactLoadStatus('loading')
 
     const res = await axios.get(`${API_URL}/getContacts`);
 
+    setAllContacts(res?.data);
+    setContactLoadStatus('loaded')
     setIndex(createContactIndex(res?.data));
 
     return {
@@ -23,6 +28,8 @@ async function getContacts() {
     };
   } catch (err: unknown) {
     console.error(err);
+    setAllContacts([]);
+    setContactLoadStatus('error')
 
     if (err && typeof err === 'object' && 'message' in err) {
       const e = err as CustomError;

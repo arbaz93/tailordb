@@ -9,3 +9,4 @@ export { default as Footer } from './Footer';
 export { default as Contacts } from './Contacts';
 export { default as CircleWithInitial } from './CircleWithInitial';
 export { default as ContactBox } from './ContactBox';
+export { default as PhantomContactBox } from './PhantomContactBox';
