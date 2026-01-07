@@ -1,15 +1,117 @@
+@config "../tailwind.config.js";
 @import "tailwindcss";
+@import "./styles/fonts.css";
+
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+
+:root {
+
+
+  /* Colors */
+  --bg-main: 0 0% 17%;
+  --bg-primary: 208 100% 46%;
+  --bg-danger: 3 71% 41%;
+  --bg-100: 0 0% 23%;
+  --bg-200: 0 0% 23%;
+  --bg-splash-screen: 0 0% 0%;
+
+  --text-clr-100: 0 0% 100%;
+  --text-clr-200: 0 0% 95%;
+  --text-clr-300: 0 0% 10%;
+
+  --fill-light-100: 0 0% 100%;
+  --fill-light-200: 0 0% 95%;
+  --border-clr: 0 0% 23%;
+  --initial-clr: 212 79% 51%;
+
+  /* Font size */
+  --big-initial: 3.875rem;
+  --small-initial: 1.5rem;
+
+  --heading-100: 1.5rem;
+  --heading-200: 1.25rem;
+  --heading-300: 1rem;
+
+  --text-100: 1rem;
+  --text-200: 0.875rem;
+  --text-300: 0.75rem;
+
+
+
+}
+
+.light {
+  /* Light Mode Colors */
+  --bg-main: 0 0% 98%;
+  /* App background */
+  --bg-100: 0 0% 94%;
+  --bg-200: 0 0% 92%;
+
+  /* Cards / panels */
+  --bg-splash-screen: 0 0% 100%;
+  /* Splash / loading */
+
+  --bg-primary: 208 100% 46%;
+  /* Same brand blue */
+  --bg-danger: 3 71% 41%;
+  /* Same danger red */
+
+  /* Text */
+  --text-clr-100: 0 0% 10%;
+  /* Primary text */
+  --text-clr-200: 0 0% 25%;
+  /* Secondary text */
+  --text-clr-300: 0 0% 60%;
+  /* Muted / disabled */
+
+  /* Fills & surfaces */
+  --fill-light-100: 0 0% 100%;
+  /* Pure white */
+  --fill-light-200: 0 0% 97%;
+  /* Subtle surface */
+
+  /* Accent / initial */
+  --initial-clr: 212 79% 51%;
+  /* Same accent */
+
+
+  /* Font size */
+  --big-initial: 3.875rem;
+  --small-initial: 1.5rem;
+
+  --heading-100: 1.5rem;
+  --heading-200: 1.25rem;
+  --heading-300: 1rem;
+
+  --text-100: 1rem;
+  --text-200: 0.875rem;
+  --text-300: 0.75rem;
+
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  /* @apply bg-white dark:bg-gray-950; */
 
   @media (prefers-color-scheme: dark) {
     color-scheme: dark;
   }
+}
+main {
+  max-width: 540px;
+}
+
+/*  Custom CSS utilities */
+
+.ff-montserrat {
+  font-family: "Montserrat";
+}
+
+.ff-poppins {
+  font-family: "Poppins";
 }
