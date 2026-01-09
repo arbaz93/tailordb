@@ -13,6 +13,7 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
+  const [height, setHeight] = useState(0);
   const allContacts = useContactStore(state => state.allContacts);
   const [contacts, setContacts] = useState(allContacts);
 
@@ -25,17 +26,21 @@ export default function Home() {
 
   useEffect(() => {
     setContacts(allContacts);
+    setHeight(window.innerHeight + 230);
   }, [allContacts])
+
+
+  console.log(height)
   return (
-    <main className="">
+    <main className={`flex w-full`} style={{ height: `${height}px`}}>
       {isLoading ?
         <SplashScreen display={isLoading} pulse={false} /> :
-        <section className="grid gap-4">
-          <div className="grid gap-4 px-8 py-10 border-b border-border-clr ">
+        <section className="grid gap-4 flex-1">
+          <div className="grid gap-4 px-8 py-8 border-b border-border-clr ">
             <HeadingMedium text="Categories" css='' />
             <RoundButtonSection callback={handleContactsSortingByGender} />
           </div>
-          <div className="grid gap-4 px-8 pb-11">
+          <div className="grid gap-4 px-8 pt-11">
             <HeadingMedium text="All Contacts" css='' />
             <Contacts contacts={contacts}/>
           </div>

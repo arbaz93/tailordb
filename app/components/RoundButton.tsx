@@ -20,6 +20,6 @@ export default function RoundButton({ text, css, active, changeActive, callback 
     setIsActive(active)
   }, [changeActive])
   return (
-    <button className={`w-14.5 aspect-square cursor-pointer rounded-full text-text-200 flex justify-center items-center border ${css} ${isActive ? 'border-transparent bg-bg-100 text-clr-100 ' : ' text-clr-200 border-clr-light-200 '} `} onClick={() => handleClick()} >{text}</button>
+    <button className={`w-14.5 h-14.5 cursor-pointer rounded-full text-text-200 flex justify-center items-center border ${css} ${isActive ? 'border-transparent bg-bg-100 text-clr-100 ' : ' text-clr-200 border-clr-light-200 '} `} onClick={() => handleClick()} >{text}</button>
   )
 }

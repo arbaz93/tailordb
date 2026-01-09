@@ -20,7 +20,7 @@ export default function search() {
     handleSearch();
   }, [inputText])
   return (
-    <main className='grid gap-4 px-8 py-11'>
+    <main className='flex flex-col gap-4 px-8 pt-11 h-[calc(100vh-120px)]'>
       <HeadingMedium text={(inputText || 'Search') + '...'} css='' />
       <Contacts contacts={searchedContacts} />
     </main>

@@ -101,6 +101,7 @@ body {
   @media (prefers-color-scheme: dark) {
     color-scheme: dark;
   }
+  min-height: 100dvh;
 }
 main {
   max-width: 540px;

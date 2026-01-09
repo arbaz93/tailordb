@@ -91,7 +91,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className={"bg-background " + (location.pathname != '/auth' && 'pb-13')}>
+      <body className={"bg-background "}>
 
         {location.pathname != '/auth' &&
           <Header text={navigationItems[activeTab]?.text} icon={navigationItems[activeTab]?.icon} />

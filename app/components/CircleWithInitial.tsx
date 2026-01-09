@@ -11,7 +11,7 @@ export default function CircleWithInitial({text, index, css=''}: CircleProps) {
       }
 
   return (
-    <div className={`w-full aspect-square rounded-[50%] flex justify-center items-center text-white text-heading-100 bg-bg-200 capitalize  font-semibold ${css} ${index != undefined ? bgColor() : ''} `}>
+    <div className={`w-15 aspect-square rounded-[50%] flex justify-center items-center text-white text-heading-100 bg-bg-200 capitalize  font-semibold ${css} ${index != undefined ? bgColor() : ''} `}>
         {text[0]}
     </div>
   )
