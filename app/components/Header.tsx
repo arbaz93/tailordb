@@ -12,7 +12,7 @@ type HeaderProps = {
     callback?: () => void;
   };
   
-export default function Header({ text, icon: Icon, callback }: HeaderProps) {
+export default function Header({ text, icon: Icon = HomeIcon, callback }: HeaderProps) {
     const location = useLocation();
     const colorScheme = useColorSchemeStore(state => state.colorScheme)
     const setColorScheme = useColorSchemeStore(state => state.setColorScheme)

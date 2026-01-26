@@ -5,9 +5,10 @@ import type { Contact } from "~/types/contact";
 
 export function createContactIndex(contacts: Contact[]) {
   return lunr(function () {
-    this.ref("id");
+    this.ref("_id");
     this.field("name");
     this.field("phone");
+    this.field("code");
 
     contacts.forEach(contact => {
       this.add(contact);
@@ -30,7 +31,7 @@ export function searchQuery(
   const results = index.search(fuzzyQuery);
 
   const contactMap = new Map(
-    contacts.map(c => [c.id, c])
+    contacts.map(c => [c._id, c])
   );
 
   return results

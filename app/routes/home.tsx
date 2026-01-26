@@ -12,7 +12,6 @@ export function meta({ }: Route.MetaArgs) {
 }
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(false);
   const [height, setHeight] = useState(0);
   const allContacts = useContactStore(state => state.allContacts);
   const [contacts, setContacts] = useState(allContacts);
@@ -29,12 +28,8 @@ export default function Home() {
     setHeight(window.innerHeight + 230);
   }, [allContacts])
 
-
-  console.log(height)
   return (
     <main className={`flex w-full`} style={{ height: `${height}px`}}>
-      {isLoading ?
-        <SplashScreen display={isLoading} pulse={false} /> :
         <section className="grid gap-4 flex-1">
           <div className="grid gap-4 px-8 py-8 border-b border-border-clr ">
             <HeadingMedium text="Categories" css='' />
@@ -45,7 +40,6 @@ export default function Home() {
             <Contacts contacts={contacts}/>
           </div>
         </section>
-      }
     </main>
   )
 }

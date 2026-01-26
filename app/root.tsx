@@ -9,13 +9,13 @@ import {
 } from "react-router";
 import { useEffect, useState, useRef } from "react";
 import { useColorSchemeStore } from './zustand/colorSchemeStore';
-import { useContactStore } from "./zustand/contactStore";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { Header, Footer } from "./components";
 import { navigationItems } from "~/utils/constants";
 import { getContacts } from "./scripts/contactFetchFunctions";
 import { getAuthStatus } from "./auth/auth";
+import Error from "./routes/error";
 
 
 export const links: Route.LinksFunction = () => [
@@ -91,8 +91,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className={"bg-background "}>
-
+      <body className={"bg-background"}>
         {location.pathname != '/auth' &&
           <Header text={navigationItems[activeTab]?.text} icon={navigationItems[activeTab]?.icon} />
         }
@@ -114,28 +113,27 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
-  let stack: string | undefined;
+  let status: number | string = 500;
+  let message = "Something went wrong";
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
+    status = error.status;
+    message =
       error.status === 404
         ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
+        : error.statusText || message;
+  } else if (error instanceof Error) {
+    message = error.message;
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
+    <main className="min-h-screen">
+      <Error status={status} message={message} />
+
+      {/* DEV-only stack trace */}
+      {import.meta.env.DEV && error instanceof Error && error.stack && (
+        <pre className="mx-auto mt-6 max-w-4xl rounded-xl bg-bg-200 p-4 text-text-200 text-clr-300 overflow-x-auto">
+          <code>{error.stack}</code>
         </pre>
       )}
     </main>

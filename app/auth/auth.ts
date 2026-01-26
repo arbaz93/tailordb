@@ -1,31 +1,3 @@
-// async function handleLogin() {
-//     setLoginStatus("Signing in...")
-//     if (formInputs.username === "" || formInputs.password === "") {
-//       setLoginStatus("username or password is empty!")
-//       return
-//     } else {
-//       const options = {
-//         method: 'POST',
-//         headers: {
-//           'Accept': 'application/json',
-//           'Content-Type': 'application/json'
-//         },
-//         body: JSON.stringify(formInputs)
-//       }
-//       await fetch(API_URL+'/auth', options)
-//       .then(res => res.json())
-//       .then(data => {
-//         if('_doc' in data) {
-//           setLoginId(data['_doc']['_id'])
-//           setPrevLogin(data['_doc']['_id'])
-//         }
-//         setLoginStatus(data.status)
-//       })
-//     }
-//   }
-
-//   export default handleLogin;
-
 import Cookies from "js-cookie";
 import { base64Encode, base64Decode } from "../utils/scripting";
 

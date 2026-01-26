@@ -4,7 +4,7 @@ import { useContactStore } from '~/zustand/contactStore'
 import { useInputTextStore } from '~/zustand/store'
 import { createContactIndex, searchQuery } from '~/lunr/lunrFunctions';
 
-export default function search() {
+export default function Search() {
   const allContacts = useContactStore(state => state.allContacts);
   const inputText = useInputTextStore(state => state.inputText);
   const [searchedContacts, setSearchedContacts] = useState(allContacts);
@@ -13,7 +13,7 @@ export default function search() {
     function handleSearch() {
       const index = createContactIndex(allContacts);
       const filteredContacts = searchQuery(inputText, index, allContacts);
-
+      console.log(index)
       setSearchedContacts(filteredContacts);
     }
 

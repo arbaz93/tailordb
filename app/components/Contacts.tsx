@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContactStore } from '~/zustand/contactStore'
 import { type Contact } from '~/types/contact'
 import PhantomContactBox from './PhantomContactBox'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useLocation } from 'react-router'
 type ContactsProps = {
   contacts: Contact[]
@@ -14,11 +14,7 @@ export default function Contacts({ contacts }: ContactsProps) {
   const location = useLocation();
 
 
-//   return (
-//     <div className='flex flex-col gap-4'>
-//       {contacts.map((contact:Contact, i:number) => <ContactBox contact={contact} key={i} index={i}/>)}
-//     </div>
-//   )
+
 
 // reference to the scrollable container
   const parentRef = useRef<HTMLDivElement>(null)
@@ -32,7 +28,7 @@ const virtualizer = useVirtualizer({
   // get scroll element
   getScrollElement: () => parentRef.current,
   //height of each item
-  estimateSize: () => 96,
+  estimateSize: () => 77,
   // render a few items for smooth scroll
   overscan: 5
 
@@ -55,7 +51,8 @@ return (
     style={{
       height: parentHeight,
       overflow: 'auto',
-      width: '100%'
+      width: '100%',
+      paddingBottom: '48px'
     }}
   >
     <div

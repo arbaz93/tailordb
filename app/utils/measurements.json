@@ -1,9 +1,0 @@
- 
-{
-    "units": "cm",
-    "basics": { "height": 177, "gender": "male" },
-    "upperBody": { "neck": 38, "shoulderWidth": 48 },
-    "lowerBody": { "waist": 86, "hip": 100 },
-    "preferences": { "fit": "slim" }
-    
-}
