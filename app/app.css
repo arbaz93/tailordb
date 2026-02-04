@@ -29,6 +29,9 @@
   --border-clr: 0 0% 23%;
   --initial-clr: 212 79% 51%;
 
+  /* icons stroke */
+  --icons-stroke-clr-100: 3 71% 41%;
+
   /* Font size */
   --big-initial: 3.875rem;
   --small-initial: 1.5rem;
@@ -79,6 +82,8 @@
   --initial-clr: 212 79% 51%;
   /* Same accent */
 
+  /* icons stroke */
+  --icons-stroke-clr-100: 0, 0, 0;
 
   /* Font size */
   --big-initial: 3.875rem;

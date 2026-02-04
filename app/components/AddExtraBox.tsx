@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Button100 from "./Button100";
+
 type InputType = 
 | 'text'
 | 'radio'
@@ -9,31 +10,44 @@ type AddExtraProps = {
     type: InputType,
     label: string,
     name: string | undefined | null | '',
+    css: string,
+    group: string
 }
 type AddExtraBoxProps = {
-    modalIsShowing: boolean
-    setModalIsShowing: (value: boolean) => void
-    addExtra: (obj:AddExtraBoxProps) => void
-  }
+    modalIsShowing: boolean;
+    setModalIsShowing: (value: boolean) => void;
+    addLocalExtra: (newExtra: any) => void; // NEW
+  };
+  
 export default function AddExtraBox({
     modalIsShowing,
     setModalIsShowing,
-    addExtra,
+    addLocalExtra
   }: AddExtraBoxProps) {
-    const [chosenType, setChosenType] = useState<InputType>('text')
     const [fields, setFields] = useState<any>({
         type: 'text',
         label: '',
-        name: ''
+        name: '',
+        css: 'h-5 h-5',
+        group: ''
     })
     const types = ['text', 'radio', 'checkbox'];
     const randomId = Math.floor(Math.random() * 1000);
 
-    useEffect(() => {
-        console.log(fields)
-    }, [fields])
+
     if(!modalIsShowing) return null;
-    
+
+    const addExtra = (obj:any) => {
+        const localStorageName = 'tailor-db-extra';
+        const arr = JSON.parse(
+            window?.localStorage?.getItem(localStorageName) ?? '[]'
+        );
+        arr.push(fields);
+        console.log(arr);
+
+        window?.localStorage?.setItem(localStorageName, JSON.stringify(arr));
+    }
+
     return (
     (<div className='bg-bg-200 fixed left-5 top-1/3 px-6 py-6 w-[90%] rounded-[10px] shadow-2xl'>
         <button className='ml-auto mb-4 text-clr-100 text-text-300 text-right block' onClick={() => setModalIsShowing(false)}>close</button>
@@ -51,12 +65,29 @@ export default function AddExtraBox({
             </label>
             {(fields?.type === 'radio' && (
                 <label htmlFor={`${randomId}name`} className="text-text-300 text-clr-100 mb-2">
-                    <p>field name</p>
-                    <input id={`${randomId}name`} value={fields?.name} className="bg-none outline-none border-b-2 border-clr-200 text-clr-200 text-text-100 w-full" type="text" onChange={(e) => setFields((prev:any) => ({...prev, name: e.target.value}))}/>
+                    <p>group</p>
+                    <input id={`${randomId}name`} value={fields?.name} className="bg-none outline-none border-b-2 border-clr-200 text-clr-200 text-text-100 w-full" type="text" onChange={(e) => setFields((prev:any) => ({...prev, name: e.target.value, group: e.target.value}))}/>
                 </label>
             ))}
         </div>
-        <Button100 text='ADD' css='text-clr-100 bg-primary mt-4' callback={() => {addExtra(fields); setFields(prev => ({...prev, label: '', name: ''}))}}/>
+        <Button100
+  text="ADD"
+  css="text-clr-100 bg-primary mt-4"
+  callback={() => {
+    // 1️⃣ Update localStorage
+    const localStorageName = 'tailor-db-extra';
+    const arr = JSON.parse(window?.localStorage?.getItem(localStorageName) ?? '[]');
+    arr.push(fields);
+    window?.localStorage?.setItem(localStorageName, JSON.stringify(arr));
+
+    // 2️⃣ Update parent state immediately
+    addLocalExtra(fields);
+
+    // 3️⃣ Reset fields
+    setFields((prev: any) => ({ ...prev, label: '', name: '' }));
+  }}
+/>
+
     </div>)
   )
 }

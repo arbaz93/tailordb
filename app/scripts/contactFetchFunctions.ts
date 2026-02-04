@@ -15,7 +15,7 @@ async function getContacts() {
     const { setIndex } = useContactStore.getState();
     setContactLoadStatus('loading')
 
-    const res = await axios.get(`${API_URL}/getContacts`);
+    const res = await axios.get(`${API_URL}/contacts`);
 
     setAllContacts(res?.data);
     setContactLoadStatus('loaded')
@@ -40,4 +40,32 @@ async function getContacts() {
   }
 }
 
-export { getContacts };
+async function deleteContactWithMeasurements(id:string) {
+  const { setAllContacts, setContactLoadStatus } = useContactStore.getState();
+  try {
+
+    const res = await axios.delete(`${API_URL}/deleteContactWithMeasurements/${id}`);
+
+
+    return res
+    return {
+      data: res.data,
+      status: res.status,
+      statusText: res.statusText,
+    };
+  } catch (err: unknown) {
+    console.error(err);
+    setAllContacts([]);
+    setContactLoadStatus('error')
+
+    if (err && typeof err === 'object' && 'message' in err) {
+      const e = err as CustomError;
+      return { status: e.status ?? 500, message: e.message };
+    }
+
+    return { status: 500, message: 'Unknown error' };
+  }
+}
+
+
+export { getContacts, deleteContactWithMeasurements };

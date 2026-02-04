@@ -26,7 +26,7 @@ export default function Header({ text, icon: Icon = HomeIcon, callback }: Header
     }, [location]);
 
     return (
-    <header className='h-15 gap-4 w-full flex items-center justify-between px-8'>
+    <header className='h-15 gap-4 w-full bg-background flex items-center justify-between px-8' style={{position: 'sticky', top: '0'}}>
         <div className='flex gap-4 justify-center items-center'>
                     {Icon ? <Icon className='w-6 fill-clr-100'/> : <HomeIcon />}
                     <input className={'text-clr-100 font-semibold outline-0 text-text-200 w-full max-w-full ' + (!routeIsSearch && ' placeholder-clr-100')} onChange={(e) => setInputText(e.target.value)} disabled={!routeIsSearch}  placeholder={text ?? ''} />

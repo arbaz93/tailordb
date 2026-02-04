@@ -35,8 +35,8 @@ export default function Home() {
             <HeadingMedium text="Categories" css='' />
             <RoundButtonSection callback={handleContactsSortingByGender} />
           </div>
-          <div className="grid gap-4 px-8 pt-11">
-            <HeadingMedium text="All Contacts" css='' />
+          <div className="grid gap-1.25 px-8 pt-11">
+            <HeadingMedium text="All Contacts" css=' mb-[11px]' />
             <Contacts contacts={contacts}/>
           </div>
         </section>

@@ -1,11 +1,13 @@
-import { CircleWithInitial, IconButton, InputBoxType100, InputCheckBox, InputText, InputRadio, AddExtraBox } from "../components";
-import { useEffect, useState } from "react";
+import { CircleWithInitial, IconButton, InputBoxType100, InputCheckBox, InputText, InputRadio, AddExtraBox, InputNote, Button100, PhantomBox } from "../components";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router";
 import { base64Decode } from "~/utils/scripting";
-import { PhoneFilledIcon, CloudIcon, EnvelopeIcon, PrinterIcon, ScissorIcon, PhoneStrokeIcon, ScissorThinIcon } from "~/icons/miscIcons";
+import { PhoneFilledIcon, CloudIcon, EnvelopeIcon, PrinterIcon, PhoneStrokeIcon, ScissorThinIcon } from "~/icons/miscIcons";
 import { measurementsTemplate } from "~/utils/measurements";
-import { addMeasurements, getMeasurements } from "~/scripts/fetchMeasurements";
+import { saveMeasurements, getMeasurements } from "~/scripts/fetchMeasurements";
+import { deleteContactWithMeasurements } from "~/scripts/contactFetchFunctions"
 import { InfoIcon } from "~/icons/measurementsIcons";
+import { hasSvgChild } from "~/utils/helperFunctions";
 
 type ContactProps = {
   id: string,
@@ -44,13 +46,14 @@ const buttons = [
 
 
 export default function Contact() {
+
   const { encodedData } = useParams();
   const { id, name, phone, code, index }: ContactProps = JSON.parse(base64Decode(encodedData));
   const [contact, setContact] = useState({id, name, phone, code});
   const [measurementsStatus, setMeasurementsStatus] = useState({ status: 100, message: ''});
   const [measurements, setMeasurements] = useState<any>({});
   const [modalIsShowing, setModalIsShowing] = useState<boolean>(false);
-
+  const [localExtraMeasurements, setLocalExtraMeasurements] = useState<any>([])
   const getSectionValue = (
     section: Section,
     label: string
@@ -74,6 +77,8 @@ export default function Contact() {
     section: Section,
     i: number
   ) => {
+    const isExtra = section === 'extra'
+    const iconCss = hasSvgChild(<m.icon />, 'path') ? m?.css + ' text-rose-400 ' : m?.css + ' h-5 w-5 '; 
     switch (m.type) {
       case 'text':
         return (
@@ -82,8 +87,8 @@ export default function Contact() {
             index={i}
             value={getSectionValue(section, m.label)}
             label={m.label}
-            icon={m.icon}
-            iconCss={m.css ?? 'h-5 w-5'}
+            icon={m?.icon ?? InfoIcon}
+            iconCss={m.css ? iconCss + ' stroke-clr-200' : 'h-5 w-5'}
             setter={(v: string) =>
               updateMeasurement(section, m.label, v)
             }
@@ -93,41 +98,50 @@ export default function Contact() {
       case 'radio':
         return (
           <InputRadio
-            key={`${section}-${i}`}
-            name={section}
-            checked={measurements?.genders === m.label}
-            index={i}
-            value={m.label}
-            label={m.label}
-            icon={m.icon}
-            iconCss={m.css ?? 'h-5 w-5'}
-            setter={(v: string) =>
+          key={`${section}-${m.label}-${i}`}
+          name={isExtra ? m.group ?? 'extra' : section}
+          index={i}
+          value={m.label}
+          label={m.label}
+          icon={m?.icon ?? InfoIcon}
+          iconCss={m.css ?? 'h-5 w-5'}
+          checked={
+            isExtra
+              ? measurements?.extra?.find((e: any) => e.label === m.group)
+                  ?.value === m.label
+              : measurements?.genders === m.label
+          }
+          setter={(v: string) => {
+            if (isExtra) {
+              updateMeasurement('extra', m.group, v)
+            } else {
               setMeasurements((prev: any) => ({
                 ...prev,
                 genders: v,
               }))
             }
-          />
+          }}
+        />
         )
   
       case 'checkbox':
         return (
           <InputCheckBox
-            key={`${section}-${i}`}
-            name={section}
-            checked={measurements?.[section] === m.label}
-            index={i}
-            value={m.label}
-            label={m.label}
-            icon={m.icon}
-            iconCss={m.css ?? 'h-5 w-5'}
-            setter={(v: string) =>
-              setMeasurements((prev: any) => ({
-                ...prev,
-                [section]: v,
-              }))
-            }
-          />
+        key={`extra-${m.label}-${i}`}
+        name="extra"
+        index={i}
+        label={m.label}
+        value={m.label}
+        icon={InfoIcon}
+        iconCss="h-6 w-6"
+        checked={
+          measurements?.extra?.find((e: any) => e.label === m.label)
+            ?.checked ?? false
+        }
+        setter={(v: boolean) =>
+          updateMeasurement('extra', m.label, v)
+        }
+      />
         )
   
       default:
@@ -135,23 +149,24 @@ export default function Contact() {
     }
   }
   
+  const updateMeasurements = async () => {
+    try {
+      const req = await saveMeasurements({id,measurements});
+      console.log(req)
+    } catch(err) {
+      console.error(err)
 
-  const addExtra = (obj:any) => {
-    setMeasurements((prev:any) => {
-      const extra = prev.extra ?? []
-  
-      const exists = extra.some((e:any) => e.label === obj.label)
-      if (exists) return prev
-  
-      return {
-        ...prev,
-        extra: [...extra, { ...obj }],
-      }
-    })
-
-    console.log(obj)
+    }
   }
-  
+  const deleteContactandMeasurement = async () => {
+    try {
+      const req = await deleteContactWithMeasurements(id);
+      console.log(req)
+    } catch(err) {
+      console.error(err)
+    }
+  }
+
   type Section =
   | 'basics'
   | 'genders'
@@ -161,30 +176,87 @@ export default function Contact() {
   | 'femaleMeasurements.lowerBody'
   | 'extra'
 
-const updateMeasurement = (
-  section: Section,
-  label: string,
-  value: string
-) => {
-  setMeasurements((prev:any) => {
-    const next = structuredClone(prev)
+  const updateMeasurement = (
+    section: Section,
+    label: string,
+    value: string | boolean
+  ) => {
+    setMeasurements((prev: any) => {
+      const next = structuredClone(prev)
+  
+      // ✅ EXTRA (text + checkbox)
+      if (section === 'extra') {
+        if (!Array.isArray(next.extra)) {
+          next.extra = []
+        }
+  
+        let item = next.extra.find((m: any) => m.label === label)
+  
+        if (!item) {
+          item = { label }
+          next.extra.push(item)
+        }
+  
+        if (typeof value === 'boolean') {
+          item.checked = value
+        } else {
+          item.value = value
+        }
+  
+        return next
+      }
+  
+      // ✅ DEFAULT (existing logic)
+      const path = section.split('.') as string[]
+      let target: any = next
+  
+      for (const key of path) {
+        target = target[key]
+      }
+  
+      const item = target.find((m: any) => m.label === label)
+      if (item) item.value = value
+  
+      return next
+    })
+  }
 
-    const path = section.split('.') as string[]
-    let target: any = next
+  const addLocalExtra = (newExtra: any) => {
+    setLocalExtraMeasurements((prev: any[]) => [...prev, newExtra]);
+  };
+  
+  const mergedExtraMeasurements = useMemo(() => {
+    const map = new Map<string, any>();
+  
+    // Start with local schema
+    localExtraMeasurements?.forEach((item: any) => {
+      map.set(item.label, { ...item });
+    });
+  
+    // Merge saved values
+    measurements?.extra?.forEach((item: any) => {
+      if (map.has(item.label)) {
+        map.set(item.label, {
+          ...map.get(item.label),
+          ...item, // inject value / checked / value
+        });
+      } else {
+        map.set(item.label, item);
+      }
+    });
+  
+    return Array.from(map.values());
+  }, [localExtraMeasurements, measurements]);
+  
 
-    for (const key of path) {
-      target = target[key]
-    }
-
-    const item = target.find((m: any) => m.label === label)
-    if (item) item.value = value
-
-    return next
-  })
-}
 
 
-
+  const updateNote = (value: string) => {
+    setMeasurements((prev: any) => ({
+      ...prev,
+      note: value,
+    }))
+  }
   useEffect(() => {
     const template = {
       "genders": "male",
@@ -375,21 +447,57 @@ const updateMeasurement = (
           ]
       }
   }
-    setMeasurements(template)
+    // 1. Local storage: always guard JSON.parse
+    try {
+      const raw = window.localStorage.getItem("tailor-db-extra");
+      setLocalExtraMeasurements(raw ? JSON.parse(raw) : []);
+    } catch {
+      console.warn("Invalid localStorage data for tailor-db-extra");
+      setLocalExtraMeasurements([]);
+    }
+  
+    // 2. Fetch measurements (never throws)
+    if (!contact?.id) {
+      setMeasurementsStatus({
+        status: 400,
+        message: "Missing contact id",
+      });
+      return;
+    }
+  
     getMeasurements(contact.id).then(res => {
-      setMeasurements(res.data[0].measurements[0]);
-      console.log(res.data)
-      setMeasurementsStatus({status: res.status, message: res.message});
-    }).catch(err => {
-      setMeasurementsStatus(err.status)
-    })
-  },[])
+      if (res.status === 200) {
+        setMeasurements(res.data?.measurements);
+      }
+      console.log(res.status)
+      if (res.status === 404) {
+        setMeasurements(template);
+      }
+  
+      setMeasurementsStatus({
+        status: res.status,
+        message: res.message,
+      });
+    });
+  
+  }, [contact?.id]);
+  
 
-  useEffect(() => {
+  function getExtra() {
     console.log(measurements)
-    console.log(measurementsTemplate)
-  })
-  return <main className="px-8 flex flex-col gap-8 pb-14">
+  }
+  const basicMeasurements = measurementsTemplate.basics.map((m:any, i:number) => renderInput(m, 'basics', i));
+    const upperBodyMeasurements = (measurements.genders === 'male' ? measurementsTemplate.maleMeasurements.upperBody
+    : measurementsTemplate.femaleMeasurements.upperBody).map((m: any, i: number) => renderInput(m, measurements.genders === 'male' ? 'maleMeasurements.upperBody' : 'femaleMeasurements.upperBody', i)
+    );
+  const lowerBodyMeasurements = (measurements.genders === 'male' ? measurementsTemplate.maleMeasurements.lowerBody
+          : measurementsTemplate.femaleMeasurements.lowerBody).map((m: any, i: number) => renderInput(m, measurements.genders === 'male' ? 'maleMeasurements.lowerBody' : 'femaleMeasurements.lowerBody', i)
+      );
+  const genders = measurementsTemplate.genders.map((m:any, i:number) => renderInput(m, 'genders', i));
+  const extraMeasurements = mergedExtraMeasurements.map((m: any, i: number) =>
+          renderInput(m, 'extra', i)
+        );
+  return <main className="px-8 flex flex-col gap-8 pb-20" onClick={getExtra}>
     <section className="flex flex-col items-center gap-4 pt-15">
       <CircleWithInitial text={contact.name} css=' text-[50px]' index={index} />
       <p className="capitalize text-center text-heading-200 text-clr-100 font-normal">{contact.name}</p>
@@ -400,7 +508,7 @@ const updateMeasurement = (
         <p className="capitalize text-text-200 text-clr-200">{btn.name}</p>
       </div>)}
     </section>
-    <section className="flex flex-col gap-4 stroke-clr-200">
+    <section className="flex flex-col gap-2 stroke-clr-200">
       <InputBoxType100 iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {setContact(prev => ({...prev, phone: value}))}}/>
       <InputBoxType100 iconCss="w-6 fill-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {setContact(prev => ({...prev, code: value}))}}/>
     </section>
@@ -409,42 +517,40 @@ const updateMeasurement = (
       <h3 className="text-clr-100 text-heading-200">Measurements:</h3>
       <div className="grid gap-2">
         <h4 className="text-clr-100 text-text-100">Basic:</h4>
-        <div className="flex justify-between gap-2">
-          {measurementsTemplate.basics.map((m:any, i:number) => renderInput(m, 'basics', i))}
+        <div className="flex justify-between gap-x-2 gap-y-2.5">
+          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? basicMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.basics.length} css={'h-15 w-full'} />}
         </div>
       </div>
       
       <div className="grid gap-2">
         <h4 className="text-clr-100 text-text-100">Gender:</h4>
-        <div className="flex justify-between gap-2">
-          {measurementsTemplate.genders.map((m:any, i:number) => renderInput(m, 'genders', i))}
+        <div className="grid grid-cols-2 gap-2">
+          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? genders : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.genders.length} css={'h-15 w-full'} />}
         </div>
       </div>
 
       <div className="grid gap-2">
         <h4 className="text-clr-100 text-text-100">Upper Body:</h4>
-        <div className="flex flex-wrap justify-between gap-x-2 gap-y-4">
-        {(measurements.genders === 'male' ? measurementsTemplate.maleMeasurements.upperBody
-          : measurementsTemplate.femaleMeasurements.upperBody).map((m: any, i: number) => renderInput(m, measurements.genders === 'male' ? 'maleMeasurements.upperBody' : 'femaleMeasurements.upperBody', i)
-        )}
+        <div className="grid grid-cols-2 w-full gap-x-2 gap-y-2.5">
+        {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? upperBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.upperBody.length} css={'h-15 w-full'} />}
         </div>
       </div>
       
       <div className="grid gap-2">
         <h4 className="text-clr-100 text-text-100">Lower Body:</h4>
-        <div className="flex flex-wrap justify-between gap-x-2 gap-y-4">
-        {(measurements.genders === 'male' ? measurementsTemplate.maleMeasurements.lowerBody
-          : measurementsTemplate.femaleMeasurements.lowerBody).map((m: any, i: number) => renderInput(m, measurements.genders === 'male' ? 'maleMeasurements.lowerBody' : 'femaleMeasurements.lowerBody', i)
-        )}
+        <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+        {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? lowerBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.lowerBody.length} css={'h-15 w-full'} />}
         </div>
       </div>
 
       <div className="grid gap-2">
         <h4 className="text-clr-100 text-text-100">Extra:</h4>
-        <div className="flex flex-wrap justify-between gap-x-2 gap-y-4">
-        {/* {measurements?.extra?.map(({m, i}:{m:any, i:any}) => renderInput(m, 'extra', i))} */}
-        {measurements?.extra?.map(({m, i}:{m:any, i:any}) => <InputText index={i} icon={InfoIcon} value={m?.value ?? ''} label={m?.label ?? ''} iconCss="h-6 w-6" setter={(v: string) => setMeasurements((prev: any) => ({...prev,extra: v,}))}  />)}
-        <button className='bg-bg-200 h-15 px-4 py-2.5 w-[46%] max-w-[46%] sm:max-w-[50%] flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+
+        {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? extraMeasurements : <PhantomBox numberOfPhantomBoxes={localExtraMeasurements?.length} css={'h-15 w-full'} />}
+
+
+        <button className='bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
             <div className='flex gap-2 items-center justify-between w-full'>
                 <div className='flex-1'>
                     +
@@ -454,9 +560,14 @@ const updateMeasurement = (
         </button>
         </div>
       </div>
-
+      <InputNote
+         value={measurements?.note ?? ''}
+         setter={updateNote}
+      />
+      <Button100 text='Save' css='text-clr-100 bg-primary' callback={() => updateMeasurements()}/> 
+      <Button100 text='Delete' css='text-clr-100 bg-danger' callback={() => deleteContactandMeasurement()}/> 
     </section>
-    <AddExtraBox modalIsShowing={modalIsShowing} setModalIsShowing={setModalIsShowing} addExtra={(obj:any) => addExtra(obj)}/>
+    <AddExtraBox modalIsShowing={modalIsShowing} setModalIsShowing={setModalIsShowing} addLocalExtra={addLocalExtra}/>
 
 
   </main>

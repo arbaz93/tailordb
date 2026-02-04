@@ -2,7 +2,7 @@ import ContactBox from './ContactBox'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContactStore } from '~/zustand/contactStore'
 import { type Contact } from '~/types/contact'
-import PhantomContactBox from './PhantomContactBox'
+import { PhantomBox } from '.'
 import { useRef } from 'react'
 import { useLocation } from 'react-router'
 type ContactsProps = {
@@ -35,7 +35,7 @@ const virtualizer = useVirtualizer({
 })
 
 if (contactLoadStatus === 'loading') {
-  return <PhantomContactBox numberOfPhantomBoxes={10} />
+  return <PhantomBox numberOfPhantomBoxes={10} css={'h-18 w-full'} />
 }
 
 const virtualItems = virtualizer.getVirtualItems();

@@ -12,7 +12,7 @@ type inputBoxProps = {
 }
 export default function InputText({ index, icon: Icon, value, label, name, checked, iconCss, setter }: inputBoxProps) {
     return (
-        <label htmlFor={`#${label}${index}`} className='bg-bg-200 h-15 px-4 py-2.5 w-[46%] sm:max-w-[50%] flex items-center justify-between rounded-[10px]'>
+        <label htmlFor={`#${label}${index}`} className='bg-bg-200 h-15 px-4 py-2.5 w-full  flex items-center justify-between rounded-[10px]'>
             <div className='flex gap-2 items-center justify-between w-full'>
                 <Icon className={iconCss} />
                 <div className='flex flex-col gap-2 items-end *:w-min'>

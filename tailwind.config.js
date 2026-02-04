@@ -21,6 +21,7 @@ module.exports = {
           'clr-200': "hsl(var(--text-clr-200))",
           'clr-300': "hsl(var(--text-clr-300))",
 
+          'icon-stroke-clr-100' : "hsl(var(--icons-stroke-clr-100))",
           'initial-clr': "hsl(var(--initial-clr))",
           
           'border-clr': "hsl(var(--border-clr))",
