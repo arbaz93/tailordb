@@ -6,6 +6,8 @@ import { useLoginStore } from "../zustand/loginStore"
 import Cookies from "js-cookie";
 import { base64Decode } from "../utils/scripting";
 import { Spinner } from "../components";
+import { AUTH_COOKIE } from "~/utils/constants";
+
 
 type FormInputs = {
     username: string,
@@ -44,16 +46,17 @@ export default function LoginPage() {
 
     // when Cookie exist and is allowed then go to homepage
     useEffect(() => {
-        const CookieLogStatus = Cookies.get("t000") ? JSON.parse(base64Decode(Cookies.get("t000"))).status : false;
-        if (CookieLogStatus == '200') {
+        const CookieLogStatus = Cookies.get(AUTH_COOKIE) ? JSON.parse(base64Decode(Cookies.get(AUTH_COOKIE))).status : false;
+        if (String(CookieLogStatus) == '200') {
+            console.log(CookieLogStatus)
             navigate('/');
-            setLoginInfo((prev: any) => {return {...prev, status:'200', statusMessage: 'signed in'}})
+            setLoginInfo((prev: any) => {return {...prev, status:200, statusMessage: 'signed in'}})
 }
     }, [])
     // when login status changes it will check if true go to home page
     useEffect(() => {
-        if (loginInfo.status === '200') {
-            setLoginInfo((prev: any) => {return {...prev, status:'200', statusMessage: 'signed in'}})
+        if (String(loginInfo.status) === '200') {
+            setLoginInfo((prev: any) => {return {...prev, status:200, statusMessage: 'signed in'}})
             navigate('/');
         }
     }, [loginInfo.status])

@@ -16,7 +16,6 @@ function hasSvgChild(
     type: string
   ): boolean {
     if (!React.isValidElement(element)) return false;
-  
     // Check if the element itself matches the type
     if (typeof element.type === 'string' && element.type === type) return true;
   

@@ -7,16 +7,16 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useColorSchemeStore } from './zustand/colorSchemeStore';
 import type { Route } from "./+types/root";
 import "./app.css";
 import { Header, Footer } from "./components";
 import { navigationItems } from "~/utils/constants";
-import { getContacts } from "./scripts/contactFetchFunctions";
+import { getContacts } from "./scripts/contactAndMeasurementFetchFunctions";
 import { getAuthStatus } from "./auth/auth";
 import Error from "./routes/error";
-
+import { useLoginStore } from "./zustand/loginStore";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -40,7 +40,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   });
   const [activeTab, setActiveTab] = useState<string>('home');
   const location = useLocation();
-
+  const loginInfo = useLoginStore(s => s.loginInfo)
 
   // Hydrate ColorScheme
   useEffect(() => {
@@ -51,10 +51,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const handleContacts = async () => {
       try {
         const res = await getContacts();
-  
-        if (res?.data) {
-          console.log(res.data);
-        }
   
         setFetchStatus({
           status: res.status,
@@ -67,14 +63,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         });
       }
     };
-    if (getAuthStatus() === '200') {
+    if (getAuthStatus() === 200) {
       handleContacts();
     }
   }, [
-    getContacts,
     setFetchStatus,
-    getAuthStatus,
+    loginInfo
   ]);
+  
   
   useEffect(() => {
     const path = location.pathname.split('/')[1]; // first segment
@@ -123,7 +119,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         ? "The requested page could not be found."
         : error.statusText || message;
   } else if (error instanceof Error) {
-    message = error.message;
+    message = error?.message;
   }
 
   return (

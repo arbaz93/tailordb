@@ -5,6 +5,8 @@ import logoWhite from '../assets/logo-white-black.svg'
 import { UserIcon } from '~/icons/nav/NavigationIcons'
 import { PhoneFilledIcon, ClockIcon, PinFilledIcon, CodeIcon } from '~/icons/miscIcons'
 import { aboutUs } from '~/utils/aboutus'
+import { Button100 } from '~/components'
+import { handleLogout } from '~/auth/auth'
 
 export default function About() {
   const colorScheme = useColorSchemeStore(state => state.colorScheme);
@@ -35,9 +37,13 @@ export default function About() {
           </div>
         </div>
       </section>
-      <section className='flex gap-4 w-full justify-center'>
-        <CodeIcon className='w-4.5 fill-clr-100' />
-        <p className='flex-1 text-text-200'>Designed&Developed by <a href='mailto:yousafarbaz.dev@gmail.com' target='_blank' className='text-primary'>Yousaf Arbaz</a></p>
+      <section className='grid gap-4'>
+        <div className='flex gap-4 w-full justify-center'>
+          <CodeIcon className='w-4.5 fill-clr-100' />
+          <p className='flex-1 text-text-200'>Designed&Developed by <a href='mailto:yousafarbaz.dev@gmail.com' target='_blank' className='text-primary'>Yousaf Arbaz</a></p>
+        </div>
+        <Button100 text='LOGOUT' css='text-white bg-danger' callback={() => handleLogout()}/>
+
       </section>
     </main>
   )

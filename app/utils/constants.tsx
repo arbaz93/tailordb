@@ -51,6 +51,9 @@ const navigationItems: NavigationItems = {
         active: true,
     },
   };
-  
+ 
+const AUTH_COOKIE = 'auth_session'
+
+
 export type { NavigationItems, CategoryBtn }
-export { navigationItems, categorieBtns}
+export { navigationItems, categorieBtns, AUTH_COOKIE }

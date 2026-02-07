@@ -1,255 +1,272 @@
-import { CircleWithInitial, IconButton, InputBoxType100, InputCheckBox, InputText, InputRadio, AddExtraBox, InputNote, Button100, PhantomBox } from "../components";
-import { useEffect, useState, useMemo } from "react";
+import {
+  CircleWithInitial,
+  IconButton,
+  InputBoxType100,
+  InputCheckBox,
+  InputText,
+  InputRadio,
+  AddExtraBox,
+  InputNote,
+  Button100,
+  PhantomBox,
+} from "../components";
+
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "react-router";
+
 import { base64Decode } from "~/utils/scripting";
-import { PhoneFilledIcon, CloudIcon, EnvelopeIcon, PrinterIcon, PhoneStrokeIcon, ScissorThinIcon } from "~/icons/miscIcons";
 import { measurementsTemplate } from "~/utils/measurements";
-import { saveMeasurements, getMeasurements } from "~/scripts/fetchMeasurements";
-import { deleteContactWithMeasurements } from "~/scripts/contactFetchFunctions"
+
+import {
+  deleteContactWithMeasurements,
+  saveMeasurements,
+  getMeasurements,
+  saveContactAndMeasurements,
+  upsertContact,
+} from "~/scripts/contactAndMeasurementFetchFunctions";
+
+import {
+  PhoneFilledIcon,
+  CloudIcon,
+  EnvelopeIcon,
+  PrinterIcon,
+  PhoneStrokeIcon,
+  ScissorThinIcon,
+  InfoSimpleIcon,
+} from "~/icons/miscIcons";
+
 import { InfoIcon } from "~/icons/measurementsIcons";
-import { hasSvgChild } from "~/utils/helperFunctions";
+
+/* ------------------------------------------------------------------ */
+/* Types */
+/* ------------------------------------------------------------------ */
 
 type ContactProps = {
-  id: string,
-  name: string,
-  phone: string,
-  code: string,
-  index: number
-}
-type InputType = 
-| 'text'
-| 'radio'
-| 'checkbox'
+  id: string;
+  name: string;
+  phone: string;
+  code: string;
+  index: number;
+};
 
-const buttons = [
-  {
-    name: 'call',
-    Icon: PhoneFilledIcon,
-    callback: () => {}
-  },
-  {
-    name: 'message',
-    Icon: CloudIcon,
-    callback: () => {}
-  },
-  {
-    name: 'print',
-    Icon: PrinterIcon,
-    callback: () => {}
-  },
-  {
-    name: 'email',
-    Icon: EnvelopeIcon,
-    callback: () => {}
-  },
-]
+type Section =
+  | "basics"
+  | "genders"
+  | "maleMeasurements.upperBody"
+  | "maleMeasurements.lowerBody"
+  | "femaleMeasurements.upperBody"
+  | "femaleMeasurements.lowerBody"
+  | "extra";
 
+type UpdatesState = {
+  contact: boolean;
+  measurements: boolean;
+};
+
+type MeasurementsStatus = {
+  status: number;
+  message: string;
+};
+
+/* ------------------------------------------------------------------ */
+/* Constants */
+/* ------------------------------------------------------------------ */
+
+// Header action buttons (icons only, callbacks later)
+const ACTION_BUTTONS = [
+  { name: "call", Icon: PhoneFilledIcon },
+  { name: "message", Icon: CloudIcon },
+  { name: "print", Icon: PrinterIcon },
+  { name: "email", Icon: EnvelopeIcon },
+] as const;
+
+// Measurement statuses that mean "render UI"
+const READY_STATUSES = new Set([200, 404]);
+
+/* ------------------------------------------------------------------ */
+/* Component */
+/* ------------------------------------------------------------------ */
 
 export default function Contact() {
+  /* ---------------------------- Params ---------------------------- */
 
+  // Decode contact info from URL
   const { encodedData } = useParams();
-  const { id, name, phone, code, index }: ContactProps = JSON.parse(base64Decode(encodedData));
-  const [contact, setContact] = useState({id, name, phone, code});
-  const [measurementsStatus, setMeasurementsStatus] = useState({ status: 100, message: ''});
+  const decoded: ContactProps = JSON.parse(base64Decode(encodedData));
+
+  /* ---------------------------- State ---------------------------- */
+
+  // Contact info (editable)
+  const [contact, setContact] = useState({
+    id: decoded.id,
+    name: decoded.name,
+    phone: decoded.phone,
+    code: decoded.code,
+  });
+
+  // Measurements object (deep / nested)
   const [measurements, setMeasurements] = useState<any>({});
-  const [modalIsShowing, setModalIsShowing] = useState<boolean>(false);
-  const [localExtraMeasurements, setLocalExtraMeasurements] = useState<any>([])
-  const getSectionValue = (
-    section: Section,
-    label: string
-  ): string => {
-    if (section === 'genders') {
-      return measurements?.genders ?? ''
-    }
-  
-    const path = section.split('.')
-    let target: any = measurements
-  
-    for (const key of path) {
-      target = target?.[key]
-    }
-  
-    return target?.find((m: any) => m.label === label)?.value ?? '' 
-  }
-  
-  const renderInput = (
-    m: any,
-    section: Section,
-    i: number
-  ) => {
-    const isExtra = section === 'extra'
-    const iconCss = hasSvgChild(<m.icon />, 'path') ? m?.css + ' text-rose-400 ' : m?.css + ' h-5 w-5 '; 
+
+  // Extra measurement schema stored locally
+  const [localExtraMeasurements, setLocalExtraMeasurements] = useState<any[]>([]);
+
+  // UI state
+  const [modalIsShowing, setModalIsShowing] = useState(false);
+
+  // Track what actually changed (prevents unnecessary saves)
+  const [updates, setUpdates] = useState<UpdatesState>({
+    contact: false,
+    measurements: false,
+  });
+
+  // API fetch status
+  const [measurementsStatus, setMeasurementsStatus] =
+    useState<MeasurementsStatus>({ status: 100, message: "" });
+
+  const isReady = READY_STATUSES.has(measurementsStatus.status);
+
+  /* ---------------------------- Helpers ---------------------------- */
+
+  // Markers to avoid repeating setState logic everywhere
+  const markContactUpdated = () =>
+    setUpdates((p) => ({ ...p, contact: true }));
+
+  const markMeasurementsUpdated = () =>
+    setUpdates((p) => ({ ...p, measurements: true }));
+
+  /**
+   * Safely read a value from a nested measurement section
+   */
+  const getSectionValue = useCallback(
+    (section: Section, label: string): string => {
+      if (section === "genders") return measurements?.genders ?? "";
+
+      const path = section.split(".");
+      let target = measurements;
+
+      for (const key of path) target = target?.[key];
+
+      return target?.find((m: any) => m.label === label)?.value ?? "";
+    },
+    [measurements]
+  );
+
+  /**
+   * Update measurement value (deep + immutable)
+   */
+  const updateMeasurement = useCallback(
+    (section: Section, label: string, value: string | boolean) => {
+      setMeasurements((prev: any) => {
+        const next = structuredClone(prev);
+
+        // EXTRA measurements (checkbox + text)
+        if (section === "extra") {
+          next.extra ??= [];
+
+          let item = next.extra.find((m: any) => m.label === label);
+          if (!item) {
+            item = { label };
+            next.extra.push(item);
+          }
+
+          typeof value === "boolean"
+            ? (item.checked = value)
+            : (item.value = value);
+
+          return next;
+        }
+
+        // Standard nested sections
+        const path = section.split(".");
+        let target = next;
+
+        for (const key of path) target = target[key];
+
+        const item = target.find((m: any) => m.label === label);
+        if (item) item.value = value;
+
+        return next;
+      });
+    },
+    []
+  );
+
+  /* ---------------------------- Input Renderer ---------------------------- */
+
+  /**
+   * Centralized renderer for all measurement inputs
+   */
+  const renderInput = (m: any, section: Section, index: number) => {
+    const isExtra = section === "extra";
+    const iconCss = `${m?.css ?? ""} h-5 w-5`;
+
     switch (m.type) {
-      case 'text':
+      case "text":
         return (
           <InputText
-            key={`${section}-${i}`}
-            index={i}
-            value={getSectionValue(section, m.label)}
+            key={`${section}-${index}`}
+            index={index}
             label={m.label}
-            icon={m?.icon ?? InfoIcon}
-            iconCss={m.css ? iconCss + ' stroke-clr-200' : 'h-5 w-5'}
-            setter={(v: string) =>
-              updateMeasurement(section, m.label, v)
-            }
+            value={getSectionValue(section, m.label)}
+            icon={m.icon ?? InfoIcon}
+            iconCss={iconCss}
+            addStroke={m.addStroke}
+            setter={(v) => {
+              markMeasurementsUpdated();
+              updateMeasurement(section, m.label, v);
+            }}
           />
-        )
-  
-      case 'radio':
+        );
+
+      case "radio":
         return (
           <InputRadio
-          key={`${section}-${m.label}-${i}`}
-          name={isExtra ? m.group ?? 'extra' : section}
-          index={i}
-          value={m.label}
-          label={m.label}
-          icon={m?.icon ?? InfoIcon}
-          iconCss={m.css ?? 'h-5 w-5'}
-          checked={
-            isExtra
-              ? measurements?.extra?.find((e: any) => e.label === m.group)
-                  ?.value === m.label
-              : measurements?.genders === m.label
-          }
-          setter={(v: string) => {
-            if (isExtra) {
-              updateMeasurement('extra', m.group, v)
-            } else {
-              setMeasurements((prev: any) => ({
-                ...prev,
-                genders: v,
-              }))
+            key={`${section}-${m.label}-${index}`}
+            name={isExtra ? m.group ?? "extra" : section}
+            index={index}
+            value={m.label}
+            label={m.label}
+            icon={m.icon ?? InfoIcon}
+            iconCss={iconCss}
+            checked={
+              isExtra
+                ? measurements?.extra?.find(
+                    (e: any) => e.label === m.group
+                  )?.value === m.label
+                : measurements?.genders === m.label
             }
-          }}
-        />
-        )
-  
-      case 'checkbox':
+            setter={(v) => {
+              markMeasurementsUpdated();
+              isExtra
+                ? updateMeasurement("extra", m.group, v)
+                : setMeasurements((p: any) => ({ ...p, genders: v }));
+            }}
+          />
+        );
+
+      case "checkbox":
         return (
           <InputCheckBox
-        key={`extra-${m.label}-${i}`}
-        name="extra"
-        index={i}
-        label={m.label}
-        value={m.label}
-        icon={InfoIcon}
-        iconCss="h-6 w-6"
-        checked={
-          measurements?.extra?.find((e: any) => e.label === m.label)
-            ?.checked ?? false
-        }
-        setter={(v: boolean) =>
-          updateMeasurement('extra', m.label, v)
-        }
-      />
-        )
-  
+            key={`extra-${m.label}-${index}`}
+            index={index}
+            label={m.label}
+            icon={InfoIcon}
+            iconCss="h-6 w-6"
+            checked={
+              measurements?.extra?.find((e: any) => e.label === m.label)
+                ?.checked ?? false
+            }
+            setter={(v) => {
+              markMeasurementsUpdated();
+              updateMeasurement("extra", m.label, v);
+            }}
+          />
+        );
+
       default:
-        return null
+        return null;
     }
-  }
-  
-  const updateMeasurements = async () => {
-    try {
-      const req = await saveMeasurements({id,measurements});
-      console.log(req)
-    } catch(err) {
-      console.error(err)
-
-    }
-  }
-  const deleteContactandMeasurement = async () => {
-    try {
-      const req = await deleteContactWithMeasurements(id);
-      console.log(req)
-    } catch(err) {
-      console.error(err)
-    }
-  }
-
-  type Section =
-  | 'basics'
-  | 'genders'
-  | 'maleMeasurements.upperBody'
-  | 'maleMeasurements.lowerBody'
-  | 'femaleMeasurements.upperBody'
-  | 'femaleMeasurements.lowerBody'
-  | 'extra'
-
-  const updateMeasurement = (
-    section: Section,
-    label: string,
-    value: string | boolean
-  ) => {
-    setMeasurements((prev: any) => {
-      const next = structuredClone(prev)
-  
-      // ✅ EXTRA (text + checkbox)
-      if (section === 'extra') {
-        if (!Array.isArray(next.extra)) {
-          next.extra = []
-        }
-  
-        let item = next.extra.find((m: any) => m.label === label)
-  
-        if (!item) {
-          item = { label }
-          next.extra.push(item)
-        }
-  
-        if (typeof value === 'boolean') {
-          item.checked = value
-        } else {
-          item.value = value
-        }
-  
-        return next
-      }
-  
-      // ✅ DEFAULT (existing logic)
-      const path = section.split('.') as string[]
-      let target: any = next
-  
-      for (const key of path) {
-        target = target[key]
-      }
-  
-      const item = target.find((m: any) => m.label === label)
-      if (item) item.value = value
-  
-      return next
-    })
-  }
-
-  const addLocalExtra = (newExtra: any) => {
-    setLocalExtraMeasurements((prev: any[]) => [...prev, newExtra]);
   };
-  
-  const mergedExtraMeasurements = useMemo(() => {
-    const map = new Map<string, any>();
-  
-    // Start with local schema
-    localExtraMeasurements?.forEach((item: any) => {
-      map.set(item.label, { ...item });
-    });
-  
-    // Merge saved values
-    measurements?.extra?.forEach((item: any) => {
-      if (map.has(item.label)) {
-        map.set(item.label, {
-          ...map.get(item.label),
-          ...item, // inject value / checked / value
-        });
-      } else {
-        map.set(item.label, item);
-      }
-    });
-  
-    return Array.from(map.values());
-  }, [localExtraMeasurements, measurements]);
-  
-
-
 
   const updateNote = (value: string) => {
     setMeasurements((prev: any) => ({
@@ -257,260 +274,154 @@ export default function Contact() {
       note: value,
     }))
   }
+  /* ---------------------------- Effects ---------------------------- */
+
+  /**
+   * Load local extras + fetch measurements
+   */
   useEffect(() => {
-    const template = {
-      "genders": "male",
-      "basics": [
-          {
-              "label": "height",
-              "value": ""
-          },
-          {
-              "label": "weight",
-              "value": ""
-          }
-      ],
-      "maleMeasurements": {
-          "upperBody": [
-              {
-                  "label": "neck",
-                  "value": ""
-              },
-              {
-                  "label": "shoulders",
-                  "value": ""
-              },
-              {
-                  "label": "chest",
-                  "value": ""
-              },
-              {
-                  "label": "upperchest",
-                  "value": ""
-              },
-              {
-                  "label": "underbust",
-                  "value": ""
-              },
-              {
-                  "label": "arms",
-                  "value": ""
-              },
-              {
-                  "label": "biceps",
-                  "value": ""
-              },
-              {
-                  "label": "Wrists",
-                  "value": ""
-              },
-              {
-                  "label": "back",
-                  "value": ""
-              },
-              {
-                  "label": "front",
-                  "value": ""
-              },
-              {
-                  "label": "shoulder waist",
-                  "value": ""
-              }
-          ],
-          "lowerBody": [
-              {
-                  "label": "waist",
-                  "value": ""
-              },
-              {
-                  "label": "high hip",
-                  "value": ""
-              },
-              {
-                  "label": "hip",
-                  "value": ""
-              },
-              {
-                  "label": "thigh",
-                  "value": ""
-              },
-              {
-                  "label": "knee",
-                  "value": ""
-              },
-              {
-                  "label": "calf",
-                  "value": ""
-              },
-              {
-                  "label": "outseam",
-                  "value": ""
-              },
-              {
-                  "label": "inseam",
-                  "value": ""
-              },
-              {
-                  "label": "pajama",
-                  "value": ""
-              }
-          ]
-      },
-      "femaleMeasurements": {
-          "upperBody": [
-              {
-                  "label": "neck",
-                  "value": ""
-              },
-              {
-                  "label": "shoulders",
-                  "value": ""
-              },
-              {
-                  "label": "chest",
-                  "value": ""
-              },
-              {
-                  "label": "upperchest",
-                  "value": ""
-              },
-              {
-                  "label": "underbust",
-                  "value": ""
-              },
-              {
-                  "label": "arms",
-                  "value": ""
-              },
-              {
-                  "label": "biceps",
-                  "value": ""
-              },
-              {
-                  "label": "Wrists",
-                  "value": ""
-              },
-              {
-                  "label": "back",
-                  "value": ""
-              },
-              {
-                  "label": "front",
-                  "value": ""
-              },
-              {
-                  "label": "shoulder waist",
-                  "value": ""
-              }
-          ],
-          "lowerBody": [
-              {
-                  "label": "waist",
-                  "value": ""
-              },
-              {
-                  "label": "high hip",
-                  "value": ""
-              },
-              {
-                  "label": "hip",
-                  "value": ""
-              },
-              {
-                  "label": "waist to hip",
-                  "value": ""
-              },
-              {
-                  "label": "thigh",
-                  "value": ""
-              },
-              {
-                  "label": "knee",
-                  "value": ""
-              },
-              {
-                  "label": "calf",
-                  "value": ""
-              },
-              {
-                  "label": "outseam",
-                  "value": ""
-              },
-              {
-                  "label": "inseam",
-                  "value": ""
-              },
-              {
-                  "label": "pajama",
-                  "value": ""
-              }
-          ]
-      }
-  }
-    // 1. Local storage: always guard JSON.parse
+    // Local storage (safe parse)
     try {
-      const raw = window.localStorage.getItem("tailor-db-extra");
+      const raw = localStorage.getItem("tailor-db-extra");
       setLocalExtraMeasurements(raw ? JSON.parse(raw) : []);
     } catch {
-      console.warn("Invalid localStorage data for tailor-db-extra");
       setLocalExtraMeasurements([]);
     }
-  
-    // 2. Fetch measurements (never throws)
-    if (!contact?.id) {
-      setMeasurementsStatus({
-        status: 400,
-        message: "Missing contact id",
-      });
+
+    if (!contact.id) {
+      setMeasurementsStatus({ status: 400, message: "Missing contact id" });
       return;
     }
-  
-    getMeasurements(contact.id).then(res => {
-      if (res.status === 200) {
-        setMeasurements(res.data?.measurements);
-      }
-      console.log(res.status)
-      if (res.status === 404) {
-        setMeasurements(template);
-      }
-  
+
+    getMeasurements(contact.id).then((res) => {
+      setMeasurements(
+        res.status === 404 ? measurementsTemplate : res.data?.measurements
+      );
+
       setMeasurementsStatus({
         status: res.status,
         message: res.message,
       });
     });
-  
-  }, [contact?.id]);
-  
+  }, [contact.id]);
 
-  function getExtra() {
-    console.log(measurements)
-  }
-  const basicMeasurements = measurementsTemplate.basics.map((m:any, i:number) => renderInput(m, 'basics', i));
-    const upperBodyMeasurements = (measurements.genders === 'male' ? measurementsTemplate.maleMeasurements.upperBody
-    : measurementsTemplate.femaleMeasurements.upperBody).map((m: any, i: number) => renderInput(m, measurements.genders === 'male' ? 'maleMeasurements.upperBody' : 'femaleMeasurements.upperBody', i)
+  /* ---------------------------- Memo ---------------------------- */
+
+  /**
+   * Merge local extra schema with saved values
+   */
+  const mergedExtraMeasurements = useMemo(() => {
+    const map = new Map<string, any>();
+
+    localExtraMeasurements.forEach((i) => map.set(i.label, { ...i }));
+    measurements?.extra?.forEach((i: any) =>
+      map.set(i.label, { ...map.get(i.label), ...i })
     );
-  const lowerBodyMeasurements = (measurements.genders === 'male' ? measurementsTemplate.maleMeasurements.lowerBody
-          : measurementsTemplate.femaleMeasurements.lowerBody).map((m: any, i: number) => renderInput(m, measurements.genders === 'male' ? 'maleMeasurements.lowerBody' : 'femaleMeasurements.lowerBody', i)
-      );
-  const genders = measurementsTemplate.genders.map((m:any, i:number) => renderInput(m, 'genders', i));
-  const extraMeasurements = mergedExtraMeasurements.map((m: any, i: number) =>
-          renderInput(m, 'extra', i)
+
+    return Array.from(map.values());
+  }, [localExtraMeasurements, measurements]);
+
+  /* ---------------------------- Save Logic ---------------------------- */
+
+  const saveAll = async () => {
+    try {
+      let contactId = contact.id;
+
+      // Save both at once
+      if (updates.contact && updates.measurements) {
+        await saveContactAndMeasurements({ ...contact, measurements });
+        return;
+      }
+
+      // Save contact only
+      if (updates.contact) {
+        const res = await upsertContact(contact);
+        contactId = res.data._id ?? contactId;
+      }
+
+      // Save measurements only
+      if (updates.measurements && contactId) {
+        await saveMeasurements({ id: contactId, measurements });
+      }
+    } catch (err) {
+      console.error("Save failed:", err);
+    }
+  };
+
+  /* ---------------------------- Derived UI ---------------------------- */
+
+  const basicMeasurements = measurementsTemplate.basics.map((m, i) =>
+    renderInput(m, "basics", i)
+  );
+
+  const genders = measurementsTemplate.genders.map((m, i) =>
+    renderInput(m, "genders", i)
+  );
+
+  const upperBodyMeasurements =
+    measurements.genders === "male"
+      ? measurementsTemplate.maleMeasurements.upperBody.map((m, i) =>
+          renderInput(m, "maleMeasurements.upperBody", i)
+        )
+      : measurementsTemplate.femaleMeasurements.upperBody.map((m, i) =>
+          renderInput(m, "femaleMeasurements.upperBody", i)
         );
-  return <main className="px-8 flex flex-col gap-8 pb-20" onClick={getExtra}>
-    <section className="flex flex-col items-center gap-4 pt-15">
-      <CircleWithInitial text={contact.name} css=' text-[50px]' index={index} />
-      <p className="capitalize text-center text-heading-200 text-clr-100 font-normal">{contact.name}</p>
-    </section>
-    <section className="flex justify-between ">
-      {buttons.map((btn,i) => <div key={i} className="flex flex-col gap-1 items-center">
-        <IconButton icon={btn.Icon} css="" callback={btn.callback}/>
-        <p className="capitalize text-text-200 text-clr-200">{btn.name}</p>
-      </div>)}
-    </section>
-    <section className="flex flex-col gap-2 stroke-clr-200">
-      <InputBoxType100 iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {setContact(prev => ({...prev, phone: value}))}}/>
-      <InputBoxType100 iconCss="w-6 fill-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {setContact(prev => ({...prev, code: value}))}}/>
+
+  const lowerBodyMeasurements =
+    measurements.genders === "male"
+      ? measurementsTemplate.maleMeasurements.lowerBody.map((m, i) =>
+          renderInput(m, "maleMeasurements.lowerBody", i)
+        )
+      : measurementsTemplate.femaleMeasurements.lowerBody.map((m, i) =>
+          renderInput(m, "femaleMeasurements.lowerBody", i)
+        );
+
+  const extraMeasurements = mergedExtraMeasurements.map((m, i) =>
+    renderInput(m, "extra", i)
+  );
+
+  /* ---------------------------- JSX ---------------------------- */
+
+  return (
+    <main className="px-8 flex flex-col gap-8 pb-20">
+      {/* Header */}
+      <section className="flex flex-col items-center gap-4 pt-15">
+        <CircleWithInitial
+          text={contact.name}
+          css="text-[50px]"
+          index={decoded.index}
+        />
+        <p className="capitalize text-heading-200 text-clr-100">
+          {contact.name}
+        </p>
+      </section>
+
+      {/* Actions */}
+      <section className="flex justify-between">
+        {ACTION_BUTTONS.map((btn, i) => (
+          <div key={i} className="flex flex-col items-center gap-1">
+            <IconButton icon={btn.Icon} callback={() => {}} />
+            <p className="capitalize text-text-200 text-clr-200">
+              {btn.name}
+            </p>
+          </div>
+        ))}
+      </section>
+
+
+      <section className="flex flex-col gap-2 stroke-clr-200">
+      <InputBoxType100 iconCss=" h-6 w-6 fill-clr-200" text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
+        setContact(prev => ({...prev, name: value})); 
+        setUpdates(prev => ({...prev, contact: true}))
+        }}/>
+      <InputBoxType100 iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
+        setContact(prev => ({...prev, phone: value}));
+        setUpdates(prev => ({...prev, contact: true}))
+        }}/>
+      <InputBoxType100 iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
+        setContact(prev => ({...prev, code: value}))
+        setUpdates(prev => ({...prev, contact: true}))
+        }}/>
     </section>
 
     <section className="flex flex-col gap-4">
@@ -564,11 +475,25 @@ export default function Contact() {
          value={measurements?.note ?? ''}
          setter={updateNote}
       />
-      <Button100 text='Save' css='text-clr-100 bg-primary' callback={() => updateMeasurements()}/> 
-      <Button100 text='Delete' css='text-clr-100 bg-danger' callback={() => deleteContactandMeasurement()}/> 
     </section>
-    <AddExtraBox modalIsShowing={modalIsShowing} setModalIsShowing={setModalIsShowing} addLocalExtra={addLocalExtra}/>
 
 
-  </main>
+
+      {/* Save / Delete */}
+      <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
+      <Button100
+        text="Delete"
+        css="bg-danger text-white"
+        callback={() => deleteContactWithMeasurements(contact.id)}
+      />
+
+      <AddExtraBox
+        modalIsShowing={modalIsShowing}
+        setModalIsShowing={setModalIsShowing}
+        addLocalExtra={(e) =>
+          setLocalExtraMeasurements((p) => [...p, e])
+        }
+      />
+    </main>
+  );
 }

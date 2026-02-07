@@ -9,6 +9,7 @@ export default [
   route(null, "./ProtectedLayout.tsx", [
     index("./routes/home.tsx"),
     route("contact/:encodedData", "./routes/contact.tsx"), // /customer
+    route("newcontact", "./routes/newContact.tsx"), // / new Contact
     route("search", "./routes/search.tsx"), // /searxh
     route("about", "./routes/about.tsx"), // /about
   ]),

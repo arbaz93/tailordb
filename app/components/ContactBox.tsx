@@ -16,9 +16,10 @@ type ContactBoxProps = {
 };
 
 export default function ContactBox({ contact, index }: ContactBoxProps) {
-
+  const address = `/contact/${base64Encode(JSON.stringify({id: contact._id, name: contact.name, phone: contact.phone, code: contact.code, index: index}))}`
   return (
     <div className='flex justify-between items-center h-18 max-w-full bg-bg-200 rounded-lg pl-2 pr-4 overflow-hidden'>
+      
       <div className='flex gap-2'>
         <div className='w-15 my-1.5'>
           <CircleWithInitial text={contact.name} index={index} css='text-heading-100' />
@@ -39,7 +40,7 @@ export default function ContactBox({ contact, index }: ContactBoxProps) {
           </div>
         </div>
       </div>
-      <Link to={`/contact/${base64Encode(JSON.stringify({id: contact._id, name: contact.name, phone: contact.phone, code: contact.code, index: index}))}`} className='flex h-full justify-center items-center'>
+      <Link to={address} className='flex h-full justify-center items-center'>
         <ArrowLeftV3Icon className='w-2 fill-clr-200' />
       </Link>
     </div>

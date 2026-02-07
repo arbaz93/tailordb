@@ -1,5 +1,5 @@
 import type { Route } from "./+types/home";
-import { Contacts, HeadingMedium, RoundButtonSection, SplashScreen } from "../components";
+import { Contacts, HeadingMedium, RoundButtonSection } from "../components";
 import { useContactStore } from "~/zustand/contactStore";
 import { useEffect, useState } from "react";
 import '../app.css'
@@ -19,7 +19,6 @@ export default function Home() {
   function handleContactsSortingByGender(gender:string) {
     const lowerCaseGender = gender.toLowerCase()
     const filteredContacts = (lowerCaseGender === "male" || lowerCaseGender === "female") ? allContacts.filter((contact) => contact?.gender === gender) : allContacts;
-    console.log(gender)
     setContacts(filteredContacts);
   }
 

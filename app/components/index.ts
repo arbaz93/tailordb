@@ -1,6 +1,5 @@
 export { default as SplashScreen } from './SplashScreen';
 export { default as Spinner } from './Spinner';
-export { default as Navigation } from './Navigation';
 export { default as Header } from './Header';
 export { default as RoundButton } from './RoundButton';
 export { default as RoundButtonSection } from './RoundButtonSection';

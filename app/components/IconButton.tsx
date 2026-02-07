@@ -14,7 +14,7 @@ export default function IconButton({ icon: Icon, css, callback }: IconButtonProp
       className={`bg-primary rounded-3xl w-16.25 h-11.5 flex justify-center items-center ${css}`}
       onClick={(event) => callback?.({ event })}
     >
-      <Icon className="w-6.5 fill-clr-200 " />
+      <Icon className="w-6.5 fill-[#f2f2f2] " />
     </button>
   )
 }

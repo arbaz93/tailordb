@@ -13,12 +13,14 @@ export default function Search() {
     function handleSearch() {
       const index = createContactIndex(allContacts);
       const filteredContacts = searchQuery(inputText, index, allContacts);
-      console.log(index)
       setSearchedContacts(filteredContacts);
     }
-
     handleSearch();
   }, [inputText])
+
+  // useEffect(() => {
+  //   setSearchedContacts(allContacts)
+  // }, [allContacts])
   return (
     <main className='flex flex-col gap-4 px-8 pt-11 h-[calc(100vh-120px)]'>
       <HeadingMedium text={(inputText || 'Search') + '...'} css='' />
