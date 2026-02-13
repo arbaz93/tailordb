@@ -8,19 +8,14 @@ import {
     AddExtraBox,
     InputNote,
     Button100,
-    PhantomBox,
   } from "../components";
   
   import { useEffect, useMemo, useState, useCallback } from "react";
-  import { useParams } from "react-router";
-  
-  import { base64Decode } from "~/utils/scripting";
+
   import { measurementsTemplate } from "~/utils/measurements";
-  
+  import { isPlainObject, goToTop } from "~/utils/helperFunctions";
+
   import {
-    deleteContactWithMeasurements,
-    saveMeasurements,
-    getMeasurements,
     saveContactAndMeasurements,
     upsertContact,
   } from "~/scripts/contactAndMeasurementFetchFunctions";
@@ -88,36 +83,74 @@ import {
   /* ------------------------------------------------------------------ */
   
   export default function Contact() {
-    /* ---------------------------- Params ---------------------------- */
-  
-    // Decode contact info from URL
-    const { encodedData } = useParams();
-    const decoded: ContactProps = JSON.parse(base64Decode(encodedData));
-  
+  /* --------------- Show Error When Fields are Empty ---------------- */
+
+  const [showContactNameError, setShowContactNameError] = useState<Boolean>(false);
+  const [showPhoneError, setShowPhoneError] = useState<Boolean>(false);
     /* ---------------------------- State ---------------------------- */
   
     // Contact info (editable)
     const [contact, setContact] = useState({
-      id: decoded.id,
-      name: decoded.name,
-      phone: decoded.phone,
-      code: decoded.code,
+      id:"",
+      name:"",
+      phone:"",
+      code:'',
     });
   
     // Measurements object (deep / nested)
-    const [measurements, setMeasurements] = useState<any>({});
-  
+    const filteredTemplate = () => {
+
+      const newObj:any = {};
+    
+      (Object.keys(measurementsTemplate) as Array<keyof typeof measurementsTemplate>)
+        .forEach((key) => {
+    
+          const outerValue = measurementsTemplate[key]
+    
+          // ───────────── arrays (genders, basics)
+          if (Array.isArray(outerValue)) {
+            const arr = outerValue // local variable
+            newObj[key] = arr.map((e: any) => ({ label: e.label, value: e.value }))
+          }
+    
+          // ───────────── objects (maleMeasurements, femaleMeasurements)
+          else if (isPlainObject(outerValue)) {
+    
+            const value = outerValue as Record<string, unknown>
+    
+            // ✅ initialize container
+            newObj[key] = {}
+    
+            Object.keys(value).forEach((k) => {
+              const innerValue = value[k]
+    
+              if (Array.isArray(innerValue)) {
+                ;(newObj[key] as Record<string, unknown>)[k] =
+                  innerValue.map((e) => ({
+                    label: e.label,
+                    value: e.value,
+                  }))
+              }
+            })
+          }
+        })
+    
+      return newObj;
+    }
+    const [measurements, setMeasurements] = useState<any>(filteredTemplate());
+    // Template for when we recieve no measurements from the server
+
     // Extra measurement schema stored locally
     const [localExtraMeasurements, setLocalExtraMeasurements] = useState<any[]>([]);
-  
-    // UI state
-    const [modalIsShowing, setModalIsShowing] = useState(false);
-  
+
     // Track what actually changed (prevents unnecessary saves)
     const [updates, setUpdates] = useState<UpdatesState>({
       contact: false,
       measurements: false,
     });
+
+    // UI state
+    const [modalIsShowing, setModalIsShowing] = useState(false);
   
     // API fetch status
     const [measurementsStatus, setMeasurementsStatus] =
@@ -126,14 +159,24 @@ import {
     const isReady = READY_STATUSES.has(measurementsStatus.status);
   
     /* ---------------------------- Helpers ---------------------------- */
-  
     // Markers to avoid repeating setState logic everywhere
     const markContactUpdated = () =>
       setUpdates((p) => ({ ...p, contact: true }));
-  
+
     const markMeasurementsUpdated = () =>
       setUpdates((p) => ({ ...p, measurements: true }));
-  
+
+    const clear = () => {
+      setMeasurements(filteredTemplate)
+      setContact({
+          id:"",
+          name:"",
+          phone:"",
+          code:'',
+      })
+
+      goToTop();
+    }
     /**
      * Safely read a value from a nested measurement section
      */
@@ -158,6 +201,7 @@ import {
       (section: Section, label: string, value: string | boolean) => {
         setMeasurements((prev: any) => {
           const next = structuredClone(prev);
+          console.log(prev)
   
           // EXTRA measurements (checkbox + text)
           if (section === "extra") {
@@ -181,7 +225,6 @@ import {
           let target = next;
   
           for (const key of path) target = target[key];
-  
           const item = target.find((m: any) => m.label === label);
           if (item) item.value = value;
   
@@ -190,7 +233,14 @@ import {
       },
       []
     );
-  
+      
+
+    const updateNote = (value: string) => {
+        setMeasurements((prev: any) => ({
+          ...prev,
+          note: value,
+        }))
+      }
     /* ---------------------------- Input Renderer ---------------------------- */
   
     /**
@@ -199,7 +249,6 @@ import {
     const renderInput = (m: any, section: Section, index: number) => {
       const isExtra = section === "extra";
       const iconCss = `${m?.css ?? ""} h-5 w-5`;
-  
       switch (m.type) {
         case "text":
           return (
@@ -226,6 +275,7 @@ import {
               index={index}
               value={m.label}
               label={m.label}
+              addStroke={m.addStroke}
               icon={m.icon ?? InfoIcon}
               iconCss={iconCss}
               checked={
@@ -247,33 +297,24 @@ import {
         case "checkbox":
           return (
             <InputCheckBox
-              key={`extra-${m.label}-${index}`}
-              index={index}
-              label={m.label}
-              icon={InfoIcon}
-              iconCss="h-6 w-6"
-              checked={
-                measurements?.extra?.find((e: any) => e.label === m.label)
-                  ?.checked ?? false
-              }
-              setter={(v) => {
-                markMeasurementsUpdated();
-                updateMeasurement("extra", m.label, v);
-              }}
-            />
+                  key={`extra-${m.label}-${index}`}
+                  index={index}
+                  label={m.label}
+                  icon={InfoIcon}
+                  iconCss="h-6 w-6"
+                  checked={measurements?.extra?.find((e: any) => e.label === m.label)
+                      ?.checked ?? false}
+                  setter={(v) => {
+                    markMeasurementsUpdated();
+                      updateMeasurement("extra", m.label, v);
+                  } } name={""} addStroke={undefined}            />
           );
   
         default:
           return null;
       }
     };
-  
-    const updateNote = (value: string) => {
-      setMeasurements((prev: any) => ({
-        ...prev,
-        note: value,
-      }))
-    }
+
     /* ---------------------------- Effects ---------------------------- */
   
     /**
@@ -288,21 +329,6 @@ import {
         setLocalExtraMeasurements([]);
       }
   
-      if (!contact.id) {
-        setMeasurementsStatus({ status: 400, message: "Missing contact id" });
-        return;
-      }
-  
-      getMeasurements(contact.id).then((res) => {
-        setMeasurements(
-          res.status === 404 ? measurementsTemplate : res.data?.measurements
-        );
-  
-        setMeasurementsStatus({
-          status: res.status,
-          message: res.message,
-        });
-      });
     }, [contact.id]);
   
     /* ---------------------------- Memo ---------------------------- */
@@ -324,25 +350,38 @@ import {
     /* ---------------------------- Save Logic ---------------------------- */
   
     const saveAll = async () => {
+
+      // if name or phone are empty
+      const hasEmptyRequiredFields =
+        !contact?.name?.trim() || !contact?.phone?.trim();
+
+      if (hasEmptyRequiredFields) goToTop();
+
       try {
-        let contactId = contact.id;
+        let contactId = undefined;
   
         // Save both at once
-        if (updates.contact && updates.measurements) {
-          await saveContactAndMeasurements({ ...contact, measurements });
-          return;
+        if (updates.contact && !updates.measurements) {
+          await upsertContact({
+            id: undefined,
+            name: contact.name,
+            phone: contact.phone,
+            code: contact.code,
+        });
         }
   
         // Save contact only
-        if (updates.contact) {
-          const res = await upsertContact(contact);
-          contactId = res.data._id ?? contactId;
+        if (updates.contact && updates.measurements) {
+          await saveContactAndMeasurements({
+            id: undefined,
+            name: contact.name,
+            phone: contact.phone,
+            code: contact.code,
+            measurements: measurements
+          });
         }
-  
-        // Save measurements only
-        if (updates.measurements && contactId) {
-          await saveMeasurements({ id: contactId, measurements });
-        }
+        clear();
+        return
       } catch (err) {
         console.error("Save failed:", err);
       }
@@ -379,20 +418,20 @@ import {
     const extraMeasurements = mergedExtraMeasurements.map((m, i) =>
       renderInput(m, "extra", i)
     );
-  
+
+    /* ------------- Random Index that decides color --------------- */
     /* ---------------------------- JSX ---------------------------- */
-  
     return (
       <main className="px-8 flex flex-col gap-8 pb-20">
         {/* Header */}
         <section className="flex flex-col items-center gap-4 pt-15">
           <CircleWithInitial
-            text={contact.name}
+            text={contact.name?.trim() ? contact.name : "-"}
             css="text-[50px]"
-            index={decoded.index}
+            index={undefined}
           />
           <p className="capitalize text-heading-200 text-clr-100">
-            {contact.name}
+            {contact.name?.trim() ? contact.name : "-"}
           </p>
         </section>
   
@@ -410,17 +449,21 @@ import {
   
   
         <section className="flex flex-col gap-2 stroke-clr-200">
-        <InputBoxType100 iconCss=" h-6 w-6 fill-clr-200" text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
+        {showContactNameError && <p className="text-text-200 mb-[-.4rem] text-danger" >name must not be empty</p>}
+        <InputBoxType100 iconCss=" h-6 w-6 fill-clr-200" required={true} text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
+          markContactUpdated();
           setContact(prev => ({...prev, name: value})); 
-          setUpdates(prev => ({...prev, contact: true}))
+          setShowContactNameError(value.trim().length === 0);
           }}/>
-        <InputBoxType100 iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
+        {showPhoneError && <p className="text-text-200 mb-[-.4rem] text-danger" >phone must not be empty</p>}
+        <InputBoxType100 iconCss=" w-6 stroke-clr-200" required={true} text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
+          markContactUpdated();
           setContact(prev => ({...prev, phone: value}));
-          setUpdates(prev => ({...prev, contact: true}))
+          setShowPhoneError(value.trim().length === 0);
           }}/>
-        <InputBoxType100 iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
+        <InputBoxType100 iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg]" required={true} text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
+          markContactUpdated();
           setContact(prev => ({...prev, code: value}))
-          setUpdates(prev => ({...prev, contact: true}))
           }}/>
       </section>
   
@@ -429,28 +472,28 @@ import {
         <div className="grid gap-2">
           <h4 className="text-clr-100 text-text-100">Basic:</h4>
           <div className="flex justify-between gap-x-2 gap-y-2.5">
-            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? basicMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.basics.length} css={'h-15 w-full'} />}
+            { basicMeasurements }
           </div>
         </div>
         
         <div className="grid gap-2">
           <h4 className="text-clr-100 text-text-100">Gender:</h4>
           <div className="grid grid-cols-2 gap-2">
-            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? genders : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.genders.length} css={'h-15 w-full'} />}
+            { genders }
           </div>
         </div>
   
         <div className="grid gap-2">
           <h4 className="text-clr-100 text-text-100">Upper Body:</h4>
           <div className="grid grid-cols-2 w-full gap-x-2 gap-y-2.5">
-          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? upperBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.upperBody.length} css={'h-15 w-full'} />}
+          { upperBodyMeasurements}
           </div>
         </div>
         
         <div className="grid gap-2">
           <h4 className="text-clr-100 text-text-100">Lower Body:</h4>
           <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
-          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? lowerBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.lowerBody.length} css={'h-15 w-full'} />}
+          { lowerBodyMeasurements}
           </div>
         </div>
   
@@ -458,7 +501,7 @@ import {
           <h4 className="text-clr-100 text-text-100">Extra:</h4>
           <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
   
-          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? extraMeasurements : <PhantomBox numberOfPhantomBoxes={localExtraMeasurements?.length} css={'h-15 w-full'} />}
+          { extraMeasurements }
   
   
           <button className='bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
@@ -480,12 +523,14 @@ import {
   
   
         {/* Save / Delete */}
-        <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
-        <Button100
-          text="Delete"
-          css="bg-danger text-white"
-          callback={() => deleteContactWithMeasurements(contact.id)}
-        />
+        <section className="grid gap-2">
+          <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
+          <Button100
+            text="clear"
+            css="bg-danger text-white"
+            callback={() => clear()}
+          />
+        </section>
   
         <AddExtraBox
           modalIsShowing={modalIsShowing}

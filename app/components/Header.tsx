@@ -1,48 +1,78 @@
-import type React from 'react'
-import { useEffect } from 'react';
-import { useLocation } from 'react-router';
-import { MoonIcon, SunIcon } from '~/icons/ColorSchemeIcons';
-import { CirclePlusIcon, PlusIcon, SquarePlusIcon } from '~/icons/miscIcons';
-import { HomeIcon } from '~/icons/nav/NavigationIcons';
-import { useColorSchemeStore } from '~/zustand/colorSchemeStore'
-import { useInputTextStore } from '~/zustand/store';
+import type React from "react";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router";
+import { MoonIcon, SunIcon } from "~/icons/ColorSchemeIcons";
+import { SquarePlusIcon } from "~/icons/miscIcons";
+import { HomeIcon } from "~/icons/nav/NavigationIcons";
+import { useColorSchemeStore } from "~/zustand/colorSchemeStore";
+import { useInputTextStore } from "~/zustand/store";
 
+/* ----------------------------- Props ---------------------------------- */
 type HeaderProps = {
+  /** Header title text */
   text: string;
-  icon: React.FC<React.SVGProps<SVGSVGElement>>;
-  callback?: () => void;
+
+  /** Icon component (SVG) displayed on left */
+  icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 };
 
-export default function Header({ text, icon: Icon = HomeIcon, callback }: HeaderProps) {
-  const location = useLocation();
-  const colorScheme = useColorSchemeStore(state => state.colorScheme)
-  const setColorScheme = useColorSchemeStore(state => state.setColorScheme)
-  const setInputText = useInputTextStore(state => state.setInputText);
-  const routeIsSearch = (location.pathname === '/search') ? true : false;
+/* -------------------------- Component --------------------------------- */
+export default function Header({ text, icon: Icon = HomeIcon }: HeaderProps) {
+  const { pathname } = useLocation();
 
+  // Color scheme state (light / dark)
+  const colorScheme = useColorSchemeStore((state) => state.colorScheme);
+  const setColorScheme = useColorSchemeStore((state) => state.setColorScheme);
+
+  // Search input state
+  const inputText = useInputTextStore((state) => state.inputText);
+  const setInputText = useInputTextStore((state) => state.setInputText);
+
+  // Determine if current route is /search
+  const isSearchRoute = pathname === "/search";
+
+  /* ------------------- Sync input with route -------------------------- */
   useEffect(() => {
-    setInputText(text)
-
-    if (location.pathname === '/search') setInputText('')
-  }, [location]);
+    // Clear input on search route, otherwise use header text
+    setInputText(isSearchRoute ? "" : text);
+  }, [isSearchRoute, text, setInputText]);
 
   return (
-    <header className='h-15 gap-4 w-full bg-background flex items-center justify-between px-8' style={{ position: 'sticky', top: '0' }}>
-      <div className='flex gap-4 justify-center items-center'>
-        {Icon ? <Icon className='w-6 fill-clr-100' /> : <HomeIcon />}
-        <input className={'text-clr-100 font-semibold outline-0 text-text-200 w-full max-w-full ' + (!routeIsSearch && ' placeholder-clr-100')} onChange={(e) => setInputText(e.target.value)} disabled={!routeIsSearch} placeholder={text ?? ''} />
+    <header className="sticky top-0 flex h-15 w-full items-center justify-between gap-4 bg-background px-8">
+      {/* Left: icon + input */}
+      <div className="flex items-center gap-4">
+        <Icon className="w-6 fill-clr-100" />
+        <input
+          className={`w-full max-w-full font-semibold text-text-200 outline-none ${
+            !isSearchRoute ? "placeholder-clr-100" : ""
+          }`}
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder={text}
+          disabled={!isSearchRoute}
+        />
       </div>
-      <div className='flex gap-4 items-center'>
-        <div className='flex gap-2'>
-          <SquarePlusIcon className='w-6 fill-clr-100' />
-        </div>
-        <div onClick={() => { setColorScheme(undefined) }} className='cursor-pointer hover:opacity-80 duration-200'>
-          {colorScheme === 'light' ?
-            <SunIcon className='w-6 fill-clr-100' /> :
-            <MoonIcon className='w-6 fill-clr-100' />
-          }
-        </div>
+
+      {/* Right: actions */}
+      <div className="flex items-center gap-4">
+        {/* Add new contact */}
+        <Link to="/contact">
+          <SquarePlusIcon className="w-6 fill-clr-100" />
+        </Link>
+
+        {/* Toggle light/dark mode */}
+        <button
+          type="button"
+          onClick={() => setColorScheme(undefined)}
+          className="cursor-pointer transition-opacity hover:opacity-80"
+        >
+          {colorScheme === "light" ? (
+            <SunIcon className="w-6 fill-clr-100" />
+          ) : (
+            <MoonIcon className="w-6 fill-clr-100" />
+          )}
+        </button>
       </div>
     </header>
-  )
+  );
 }

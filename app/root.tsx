@@ -1,3 +1,7 @@
+/**
+ * Root application layout and error handling
+ */
+
 import {
   isRouteErrorResponse,
   Links,
@@ -8,15 +12,31 @@ import {
   useLocation,
 } from "react-router";
 import { useEffect, useState } from "react";
-import { useColorSchemeStore } from './zustand/colorSchemeStore';
+
 import type { Route } from "./+types/root";
 import "./app.css";
-import { Header, Footer } from "./components";
+
+/* ----------------------------- Components ----------------------------- */
+import {
+  Header,
+  Footer,
+  NotificationBox,
+  SplashScreen,
+} from "./components";
+import Error from "./routes/error";
+
+/* ------------------------------- Stores -------------------------------- */
+import { useColorSchemeStore } from "./zustand/colorSchemeStore";
+import { useLoginStore } from "./zustand/loginStore";
+
+/* ------------------------------- Utils --------------------------------- */
 import { navigationItems } from "~/utils/constants";
 import { getContacts } from "./scripts/contactAndMeasurementFetchFunctions";
 import { getAuthStatus } from "./auth/auth";
-import Error from "./routes/error";
-import { useLoginStore } from "./zustand/loginStore";
+
+/* ---------------------------------------------------------------------- */
+/*                               <Links />                                */
+/* ---------------------------------------------------------------------- */
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -27,76 +47,115 @@ export const links: Route.LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    href:
+      "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
 ];
 
+/* ---------------------------------------------------------------------- */
+/*                               Layout                                   */
+/* ---------------------------------------------------------------------- */
+
 export function Layout({ children }: { children: React.ReactNode }) {
-  const hydrate = useColorSchemeStore((s) => s.hydrate);
-  const colorScheme = useColorSchemeStore((s) => s.colorScheme);
-  const [fetchStatus, setFetchStatus] = useState<any>({
-    status: 100,
-    statusText: ''
-  });
-  const [activeTab, setActiveTab] = useState<string>('home');
   const location = useLocation();
-  const loginInfo = useLoginStore(s => s.loginInfo)
 
-  // Hydrate ColorScheme
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  /* ------------------------------ State -------------------------------- */
 
+  const hydrateColorScheme = useColorSchemeStore((s) => s.hydrate);
+  const colorScheme = useColorSchemeStore((s) => s.colorScheme);
+
+  const loginInfo = useLoginStore((s) => s.loginInfo);
+
+  const [activeTab, setActiveTab] = useState("home");
+  const [pageReady, setPageReady] = useState(false);
+
+  /* -------------------------- Effects ---------------------------------- */
+
+  /**
+   * Hydrate persisted color scheme on first load
+   */
   useEffect(() => {
-    const handleContacts = async () => {
+    hydrateColorScheme();
+    setPageReady(true);
+  }, [hydrateColorScheme]);
+
+  /**
+   * Fetch contacts only when user is authenticated
+   * and login info changes
+   */
+  useEffect(() => {
+    if (getAuthStatus() !== 200) return;
+
+    const fetchContacts = async () => {
       try {
-        const res = await getContacts();
-  
-        setFetchStatus({
-          status: res.status,
-          statusText: res.statusText,
-        });
-      } catch (err: any) {
-        setFetchStatus({
-          status: err?.status ?? 500,
-          statusText: err?.message ?? 'Unknown error',
-        });
+        await getContacts();
+      } catch (error) {
+        console.error("Failed to fetch contacts:", error);
       }
     };
-    if (getAuthStatus() === 200) {
-      handleContacts();
-    }
-  }, [
-    setFetchStatus,
-    loginInfo
-  ]);
-  
-  
+
+    fetchContacts();
+  }, [loginInfo]);
+
+  /**
+   * Update active navigation tab based on URL
+   */
   useEffect(() => {
-    const path = location.pathname.split('/')[1]; // first segment
-    setActiveTab(path || 'home');
+    const pathSegment = location.pathname.split("/")[1];
+    setActiveTab(pathSegment || "home");
   }, [location.pathname]);
 
+  /* ------------------------------ Render -------------------------------- */
+
+  const isAuthPage = location.pathname === "/auth";
+
   return (
-    <html lang="en" className={`${colorScheme}`}>
+    <html lang="en" className={colorScheme}>
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="keywords" content="tailor, tailor database, manage tailors, tailor services, tailor profiles, find tailors, tailor locations" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1"
+        />
+        <meta
+          name="keywords"
+          content="tailor, tailor database, manage tailors, tailor services, tailor profiles, find tailors, tailor locations"
+        />
         <meta name="author" content="Yousaf Arbaz" />
+
         <Meta />
         <Links />
       </head>
-      <body className={"bg-background"}>
-        {location.pathname != '/auth' &&
-          <Header text={navigationItems[activeTab]?.text} icon={navigationItems[activeTab]?.icon} />
-        }
 
+      <body className="bg-background">
+        {/* App boot splash */}
+        <SplashScreen display={!pageReady} pulse />
+
+        {/* Scroll anchor */}
+        <div id="top" className="absolute w-0 h-0" />
+
+        {/* Global notifications */}
+        <NotificationBox />
+
+        {/* Header (hidden on auth page) */}
+        {!isAuthPage && (
+          <Header
+            text={navigationItems[activeTab]?.text}
+            icon={navigationItems[activeTab]?.icon}
+          />
+        )}
+
+        {/* Route content */}
         {children}
 
-        {location.pathname != '/auth' &&
-          <Footer activeTab={activeTab} setActiveTab={setActiveTab} />
-        }
+        {/* Footer (hidden on auth page) */}
+        {!isAuthPage && (
+          <Footer
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+        )}
+
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -104,11 +163,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ---------------------------------------------------------------------- */
+/*                                App                                     */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * Outlet wrapper for nested routes
+ */
 export default function App() {
   return <Outlet />;
 }
 
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+/* ---------------------------------------------------------------------- */
+/*                           Error Boundary                                */
+/* ---------------------------------------------------------------------- */
+
+export function ErrorBoundary({
+  error,
+}: Route.ErrorBoundaryProps) {
   let status: number | string = 500;
   let message = "Something went wrong";
 
@@ -119,19 +191,21 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         ? "The requested page could not be found."
         : error.statusText || message;
   } else if (error instanceof Error) {
-    message = error?.message;
+    message = error.message;
   }
 
   return (
     <main className="min-h-screen">
       <Error status={status} message={message} />
 
-      {/* DEV-only stack trace */}
-      {import.meta.env.DEV && error instanceof Error && error.stack && (
-        <pre className="mx-auto mt-6 max-w-4xl rounded-xl bg-bg-200 p-4 text-text-200 text-clr-300 overflow-x-auto">
-          <code>{error.stack}</code>
-        </pre>
-      )}
+      {/* Development-only stack trace */}
+      {import.meta.env.DEV &&
+        error instanceof Error &&
+        error.stack && (
+          <pre className="mx-auto mt-6 max-w-4xl overflow-x-auto rounded-xl bg-bg-200 p-4 text-text-200 text-clr-300">
+            <code>{error.stack}</code>
+          </pre>
+        )}
     </main>
   );
 }

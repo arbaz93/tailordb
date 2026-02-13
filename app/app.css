@@ -1,18 +1,28 @@
+/* -------------------------------------------------------------------------- */
+/*                                Tailwind Setup                              */
+/* -------------------------------------------------------------------------- */
+
 @config "../tailwind.config.js";
 @import "tailwindcss";
 @import "./styles/fonts.css";
 
-
+/* -------------------------------------------------------------------------- */
+/*                                  Theme                                     */
+/* -------------------------------------------------------------------------- */
+/* Tailwind theme variables */
 @theme {
   --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              Root (Dark Mode)                               */
+/* -------------------------------------------------------------------------- */
 
 :root {
+  /* ------------------------------- Colors -------------------------------- */
 
-
-  /* Colors */
+  /* Backgrounds */
   --bg-main: 0 0% 17%;
   --bg-primary: 208 100% 46%;
   --bg-danger: 3 71% 41%;
@@ -20,72 +30,73 @@
   --bg-200: 0 0% 23%;
   --bg-splash-screen: 0 0% 0%;
 
+  /* Text */
   --text-clr-100: 0 0% 100%;
   --text-clr-200: 0 0% 95%;
   --text-clr-300: 0 0% 10%;
 
+  /* Fills & borders */
   --fill-light-100: 0 0% 100%;
   --fill-light-200: 0 0% 95%;
   --border-clr: 0 0% 23%;
+
+  /* Accent */
   --initial-clr: 212 79% 51%;
 
-  /* icons stroke */
+  /* Icons */
   --icons-stroke-clr-100: 3 71% 41%;
 
-  /* Font size */
+  /* ------------------------------ Typography ----------------------------- */
+
+  /* Initials / branding */
   --big-initial: 3.875rem;
   --small-initial: 1.5rem;
 
+  /* Headings */
   --heading-100: 1.5rem;
   --heading-200: 1.25rem;
   --heading-300: 1rem;
 
+  /* Body text */
   --text-100: 1rem;
   --text-200: 0.875rem;
   --text-300: 0.75rem;
-
-
-
 }
 
+/* -------------------------------------------------------------------------- */
+/*                               Light Mode                                   */
+/* -------------------------------------------------------------------------- */
+
 .light {
-  /* Light Mode Colors */
+  /* ------------------------------- Colors -------------------------------- */
+
+  /* Backgrounds */
   --bg-main: 0 0% 98%;
-  /* App background */
   --bg-100: 0 0% 94%;
   --bg-200: 0 0% 92%;
-
-  /* Cards / panels */
   --bg-splash-screen: 0 0% 100%;
-  /* Splash / loading */
 
+  /* Brand */
   --bg-primary: 208 100% 46%;
-  /* Same brand blue */
   --bg-danger: 3 71% 41%;
-  /* Same danger red */
 
   /* Text */
   --text-clr-100: 0 0% 10%;
-  /* Primary text */
   --text-clr-200: 0 0% 25%;
-  /* Secondary text */
   --text-clr-300: 0 0% 60%;
-  /* Muted / disabled */
 
-  /* Fills & surfaces */
+  /* Fills */
   --fill-light-100: 0 0% 100%;
-  /* Pure white */
   --fill-light-200: 0 0% 97%;
-  /* Subtle surface */
 
-  /* Accent / initial */
+  /* Accent */
   --initial-clr: 212 79% 51%;
-  /* Same accent */
 
-  /* icons stroke */
-  --icons-stroke-clr-100: 0, 0, 0;
+  /* Icons */
+  --icons-stroke-clr-100: 0 0% 0%;
 
-  /* Font size */
+  /* ------------------------------ Typography ----------------------------- */
+
   --big-initial: 3.875rem;
   --small-initial: 1.5rem;
 
@@ -96,23 +107,29 @@
   --text-100: 1rem;
   --text-200: 0.875rem;
   --text-300: 0.75rem;
-
 }
+
+/* -------------------------------------------------------------------------- */
+/*                               Base Layout                                  */
+/* -------------------------------------------------------------------------- */
 
 html,
 body {
-  /* @apply bg-white dark:bg-gray-950; */
+  min-height: 100dvh;
 
+  /* Respect system dark mode for form controls */
   @media (prefers-color-scheme: dark) {
     color-scheme: dark;
   }
-  min-height: 100dvh;
 }
+
 main {
   max-width: 540px;
 }
 
-/*  Custom CSS utilities */
+/* -------------------------------------------------------------------------- */
+/*                           Custom Utility Classes                            */
+/* -------------------------------------------------------------------------- */
 
 .ff-montserrat {
   font-family: "Montserrat";

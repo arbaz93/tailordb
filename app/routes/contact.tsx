@@ -12,11 +12,11 @@ import {
 } from "../components";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import { base64Decode } from "~/utils/scripting";
 import { measurementsTemplate } from "~/utils/measurements";
-
+import { goToTop, isPlainObject } from "~/utils/helperFunctions";
 import {
   deleteContactWithMeasurements,
   saveMeasurements,
@@ -83,12 +83,21 @@ const ACTION_BUTTONS = [
 // Measurement statuses that mean "render UI"
 const READY_STATUSES = new Set([200, 404]);
 
+
 /* ------------------------------------------------------------------ */
 /* Component */
 /* ------------------------------------------------------------------ */
 
 export default function Contact() {
-  /* ---------------------------- Params ---------------------------- */
+
+  /* ------------------------ Navigator Hook ------------------------------ */
+  const navigate = useNavigate();
+
+  /* --------------- Show Error When Fields are Empty ---------------- */
+
+  const [showContactNameError, setShowContactNameError] = useState<Boolean>(false);
+  const [showPhoneError, setShowPhoneError] = useState<Boolean>(false);
+  /* ---------------------------- Params ----------------------------  */
 
   // Decode contact info from URL
   const { encodedData } = useParams();
@@ -107,6 +116,46 @@ export default function Contact() {
   // Measurements object (deep / nested)
   const [measurements, setMeasurements] = useState<any>({});
 
+  // Template for when we recieve no measurements from the server
+  const filteredTemplate = () => {
+
+    const newObj:any = {};
+  
+    (Object.keys(measurementsTemplate) as Array<keyof typeof measurementsTemplate>)
+      .forEach((key) => {
+  
+        const outerValue = measurementsTemplate[key]
+  
+        // ───────────── arrays (genders, basics)
+        if (Array.isArray(outerValue)) {
+          const arr = outerValue // local variable
+          newObj[key] = arr.map((e: any) => ({ label: e.label, value: e.value }))
+        }
+  
+        // ───────────── objects (maleMeasurements, femaleMeasurements)
+        else if (isPlainObject(outerValue)) {
+  
+          const value = outerValue as Record<string, unknown>
+  
+          // ✅ initialize container
+          newObj[key] = {}
+  
+          Object.keys(value).forEach((k) => {
+            const innerValue = value[k]
+  
+            if (Array.isArray(innerValue)) {
+              ;(newObj[key] as Record<string, unknown>)[k] =
+                innerValue.map((e) => ({
+                  label: e.label,
+                  value: e.value,
+                }))
+            }
+          })
+        }
+      })
+  
+    return newObj;
+  }
   // Extra measurement schema stored locally
   const [localExtraMeasurements, setLocalExtraMeasurements] = useState<any[]>([]);
 
@@ -151,45 +200,61 @@ export default function Contact() {
     [measurements]
   );
 
+  
+    
   /**
    * Update measurement value (deep + immutable)
    */
   const updateMeasurement = useCallback(
     (section: Section, label: string, value: string | boolean) => {
       setMeasurements((prev: any) => {
-        const next = structuredClone(prev);
-
-        // EXTRA measurements (checkbox + text)
+        // EXTRA section (checkbox + text)
         if (section === "extra") {
-          next.extra ??= [];
-
-          let item = next.extra.find((m: any) => m.label === label);
-          if (!item) {
-            item = { label };
-            next.extra.push(item);
+          const extra = [...(prev.extra ?? [])];
+          const index = extra.findIndex((m) => m.label === label);
+  
+          if (index === -1) {
+            extra.push(
+              typeof value === "boolean"
+                ? { label, value: value } // store checkbox as value too
+                : { label, value }
+            );
+          } else {
+            extra[index] = { label, value };
           }
-
-          typeof value === "boolean"
-            ? (item.checked = value)
-            : (item.value = value);
-
-          return next;
+  
+          return { ...prev, extra };
         }
-
-        // Standard nested sections
+  
+        // STANDARD sections (basics / upperBody / lowerBody)
         const path = section.split(".");
-        let target = next;
-
-        for (const key of path) target = target[key];
-
-        const item = target.find((m: any) => m.label === label);
-        if (item) item.value = value;
-
+        const rootKey = path[0];
+        const subKey = path[1]; // undefined for basics
+  
+        // Create new next state
+        const next: any = { ...prev };
+  
+        if (!subKey) {
+          // basics
+          next[rootKey] = prev[rootKey].map((m: any) =>
+            m.label === label ? { label, value } : { label: m.label, value: m.value }
+          );
+        } else {
+          // maleMeasurements / femaleMeasurements
+          next[rootKey] = {
+            ...prev[rootKey],
+            [subKey]: prev[rootKey][subKey].map((m: any) =>
+              m.label === label ? { label, value } : { label: m.label, value: m.value }
+            ),
+          };
+        }
+  
         return next;
       });
     },
     []
   );
+  
 
   /* ---------------------------- Input Renderer ---------------------------- */
 
@@ -226,13 +291,14 @@ export default function Contact() {
             index={index}
             value={m.label}
             label={m.label}
+            addStroke={m.addStroke}
             icon={m.icon ?? InfoIcon}
             iconCss={iconCss}
             checked={
               isExtra
                 ? measurements?.extra?.find(
-                    (e: any) => e.label === m.group
-                  )?.value === m.label
+                  (e: any) => e.label === m.group
+                )?.value === m.label
                 : measurements?.genders === m.label
             }
             setter={(v) => {
@@ -252,15 +318,12 @@ export default function Contact() {
             label={m.label}
             icon={InfoIcon}
             iconCss="h-6 w-6"
-            checked={
-              measurements?.extra?.find((e: any) => e.label === m.label)
-                ?.checked ?? false
-            }
+            checked={measurements?.extra?.find((e: any) => e.label === m.label)
+              ?.checked ?? false}
             setter={(v) => {
               markMeasurementsUpdated();
               updateMeasurement("extra", m.label, v);
-            }}
-          />
+            }} name={""} addStroke={undefined} />
         );
 
       default:
@@ -279,6 +342,9 @@ export default function Contact() {
   /**
    * Load local extras + fetch measurements
    */
+
+
+  
   useEffect(() => {
     // Local storage (safe parse)
     try {
@@ -288,21 +354,37 @@ export default function Contact() {
       setLocalExtraMeasurements([]);
     }
 
+     
     if (!contact.id) {
       setMeasurementsStatus({ status: 400, message: "Missing contact id" });
       return;
     }
-
+    
     getMeasurements(contact.id).then((res) => {
-      setMeasurements(
-        res.status === 404 ? measurementsTemplate : res.data?.measurements
-      );
-
-      setMeasurementsStatus({
-        status: res.status,
-        message: res.message,
-      });
+      if ("data" in res) {
+        // success
+        setMeasurements(
+          res.status === 404
+            ? { ...filteredTemplate() }
+            : res.data?.measurements
+        );
+    
+        setMeasurementsStatus({
+          status: res.status,
+          message: "Loaded successfully",
+        });
+      } else {
+        // error
+        setMeasurements({ ...filteredTemplate() });
+    
+        setMeasurementsStatus({
+          status: res.status,
+          message: res.message,
+        });
+      }
+    
     });
+    
   }, [contact.id]);
 
   /* ---------------------------- Memo ---------------------------- */
@@ -324,29 +406,62 @@ export default function Contact() {
   /* ---------------------------- Save Logic ---------------------------- */
 
   const saveAll = async () => {
-    try {
-      let contactId = contact.id;
+    let contactId = contact.id;
 
-      // Save both at once
-      if (updates.contact && updates.measurements) {
-        await saveContactAndMeasurements({ ...contact, measurements });
+    // if name or phone are empty
+    const hasEmptyRequiredFields =
+    !contact?.name?.trim() || !contact?.phone?.trim();
+  
+  if (hasEmptyRequiredFields) goToTop();
+
+    // Save both at once
+    if (updates.contact && updates.measurements) {
+      const res = await saveContactAndMeasurements({
+        ...contact,
+        measurements,
+      });
+  
+      if (!("data" in res)) {
+        console.error("Save failed:", res.message);
         return;
       }
-
-      // Save contact only
-      if (updates.contact) {
-        const res = await upsertContact(contact);
-        contactId = res.data._id ?? contactId;
+  
+      return;
+    }
+  
+    // Save contact only
+    if (updates.contact) {
+      const res = await upsertContact(contact);
+  
+      if (!("data" in res)) {
+        console.error("Save failed:", res.message);
+        return;
       }
-
-      // Save measurements only
-      if (updates.measurements && contactId) {
-        await saveMeasurements({ id: contactId, measurements });
+  
+      contactId = res.data?._id ?? contactId;
+    }
+  
+    // Save measurements only
+    if (updates.measurements && contactId) {
+      const res = await saveMeasurements({
+        id: contactId,
+        measurements,
+      });
+  
+      if (!("data" in res)) {
+        console.error("Save failed:", res.message);
+        return;
       }
-    } catch (err) {
-      console.error("Save failed:", err);
     }
   };
+  
+  /* ---------------------------- Delete Logic ---------------------------- */
+  const handleDelete = async () => {
+    const res = await deleteContactWithMeasurements(contact.id)
+    if(res.status === 200) {
+      navigate("/")
+    }
+  }
 
   /* ---------------------------- Derived UI ---------------------------- */
 
@@ -361,20 +476,20 @@ export default function Contact() {
   const upperBodyMeasurements =
     measurements.genders === "male"
       ? measurementsTemplate.maleMeasurements.upperBody.map((m, i) =>
-          renderInput(m, "maleMeasurements.upperBody", i)
-        )
+        renderInput(m, "maleMeasurements.upperBody", i)
+      )
       : measurementsTemplate.femaleMeasurements.upperBody.map((m, i) =>
-          renderInput(m, "femaleMeasurements.upperBody", i)
-        );
+        renderInput(m, "femaleMeasurements.upperBody", i)
+      );
 
   const lowerBodyMeasurements =
     measurements.genders === "male"
       ? measurementsTemplate.maleMeasurements.lowerBody.map((m, i) =>
-          renderInput(m, "maleMeasurements.lowerBody", i)
-        )
+        renderInput(m, "maleMeasurements.lowerBody", i)
+      )
       : measurementsTemplate.femaleMeasurements.lowerBody.map((m, i) =>
-          renderInput(m, "femaleMeasurements.lowerBody", i)
-        );
+        renderInput(m, "femaleMeasurements.lowerBody", i)
+      );
 
   const extraMeasurements = mergedExtraMeasurements.map((m, i) =>
     renderInput(m, "extra", i)
@@ -387,12 +502,12 @@ export default function Contact() {
       {/* Header */}
       <section className="flex flex-col items-center gap-4 pt-15">
         <CircleWithInitial
-          text={contact.name}
+          text={contact.name?.trim() ? contact.name : "-"}
           css="text-[50px]"
           index={decoded.index}
         />
         <p className="capitalize text-heading-200 text-clr-100">
-          {contact.name}
+          {contact.name?.trim() ? contact.name : "-"}
         </p>
       </section>
 
@@ -400,7 +515,7 @@ export default function Contact() {
       <section className="flex justify-between">
         {ACTION_BUTTONS.map((btn, i) => (
           <div key={i} className="flex flex-col items-center gap-1">
-            <IconButton icon={btn.Icon} callback={() => {}} />
+            <IconButton icon={btn.Icon} callback={() => { }} />
             <p className="capitalize text-text-200 text-clr-200">
               {btn.name}
             </p>
@@ -410,82 +525,89 @@ export default function Contact() {
 
 
       <section className="flex flex-col gap-2 stroke-clr-200">
-      <InputBoxType100 iconCss=" h-6 w-6 fill-clr-200" text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
-        setContact(prev => ({...prev, name: value})); 
-        setUpdates(prev => ({...prev, contact: true}))
-        }}/>
-      <InputBoxType100 iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
-        setContact(prev => ({...prev, phone: value}));
-        setUpdates(prev => ({...prev, contact: true}))
-        }}/>
-      <InputBoxType100 iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
-        setContact(prev => ({...prev, code: value}))
-        setUpdates(prev => ({...prev, contact: true}))
-        }}/>
-    </section>
-
-    <section className="flex flex-col gap-4">
-      <h3 className="text-clr-100 text-heading-200">Measurements:</h3>
-      <div className="grid gap-2">
-        <h4 className="text-clr-100 text-text-100">Basic:</h4>
-        <div className="flex justify-between gap-x-2 gap-y-2.5">
-          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? basicMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.basics.length} css={'h-15 w-full'} />}
-        </div>
-      </div>
       
-      <div className="grid gap-2">
-        <h4 className="text-clr-100 text-text-100">Gender:</h4>
-        <div className="grid grid-cols-2 gap-2">
-          {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? genders : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.genders.length} css={'h-15 w-full'} />}
+        {showContactNameError && <p className="text-text-200 mb-[-.4rem] text-danger" >name must not be empty</p>}
+        <InputBoxType100 required={true} iconCss=" h-6 w-6 fill-clr-200" text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
+          setContact(prev => ({ ...prev, name: value }));
+          markContactUpdated();
+          setShowContactNameError(value.trim().length === 0);
+        }} />
+        {showPhoneError && <p className="text-text-200 mb-[-.4rem] text-danger">phone must not be empty</p>}
+        <InputBoxType100 required={true} iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
+          setContact(prev => ({ ...prev, phone: value }));
+          markContactUpdated();
+          setShowPhoneError(value.trim().length === 0);
+          }} />
+        <InputBoxType100 required={true} iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
+          setContact(prev => ({ ...prev, code: value }))
+          markContactUpdated();
+        }} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h3 className="text-clr-100 text-heading-200">Measurements:</h3>
+        <div className="grid gap-2">
+          <h4 className="text-clr-100 text-text-100">Basic:</h4>
+          <div className="flex justify-between gap-x-2 gap-y-2.5">
+            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? basicMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.basics.length} css={'h-15 w-full'} />}
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-2">
-        <h4 className="text-clr-100 text-text-100">Upper Body:</h4>
-        <div className="grid grid-cols-2 w-full gap-x-2 gap-y-2.5">
-        {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? upperBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.upperBody.length} css={'h-15 w-full'} />}
+        <div className="grid gap-2">
+          <h4 className="text-clr-100 text-text-100">Gender:</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? genders : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.genders.length} css={'h-15 w-full'} />}
+          </div>
         </div>
-      </div>
-      
-      <div className="grid gap-2">
-        <h4 className="text-clr-100 text-text-100">Lower Body:</h4>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
-        {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? lowerBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.lowerBody.length} css={'h-15 w-full'} />}
+
+        <div className="grid gap-2">
+          <h4 className="text-clr-100 text-text-100">Upper Body:</h4>
+          <div className="grid grid-cols-2 w-full gap-x-2 gap-y-2.5">
+            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? upperBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.upperBody.length} css={'h-15 w-full'} />}
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-2">
-        <h4 className="text-clr-100 text-text-100">Extra:</h4>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+        <div className="grid gap-2">
+          <h4 className="text-clr-100 text-text-100">Lower Body:</h4>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? lowerBodyMeasurements : <PhantomBox numberOfPhantomBoxes={measurementsTemplate.maleMeasurements.lowerBody.length} css={'h-15 w-full'} />}
+          </div>
+        </div>
 
-        {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? extraMeasurements : <PhantomBox numberOfPhantomBoxes={localExtraMeasurements?.length} css={'h-15 w-full'} />}
+        <div className="grid gap-2">
+          <h4 className="text-clr-100 text-text-100">Extra:</h4>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+
+            {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? extraMeasurements : <PhantomBox numberOfPhantomBoxes={localExtraMeasurements?.length} css={'h-15 w-full'} />}
 
 
-        <button className='bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
-            <div className='flex gap-2 items-center justify-between w-full'>
+            <button className='bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
+              <div className='flex gap-2 items-center justify-between w-full'>
                 <div className='flex-1'>
-                    +
-                    <p className='text-text-300 text-clr-200 font-light w-full text-center'>{'ADD'}</p>
+                  +
+                  <p className='text-text-300 text-clr-200 font-light w-full text-center'>{'ADD'}</p>
                 </div>
-            </div>
-        </button>
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
-      <InputNote
-         value={measurements?.note ?? ''}
-         setter={updateNote}
-      />
-    </section>
+        <InputNote
+          value={measurements?.note ?? ''}
+          setter={updateNote}
+        />
+      </section>
 
 
 
-      {/* Save / Delete */}
-      <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
-      <Button100
-        text="Delete"
-        css="bg-danger text-white"
-        callback={() => deleteContactWithMeasurements(contact.id)}
-      />
+        {/* Save / Delete */}
+        <section className="grid gap-2">
+          <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
+          <Button100
+            text="Delete"
+            css="bg-danger text-white"
+            callback={handleDelete}
+          />
+        </section>
 
       <AddExtraBox
         modalIsShowing={modalIsShowing}

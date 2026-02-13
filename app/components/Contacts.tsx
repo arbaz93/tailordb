@@ -1,87 +1,83 @@
-import ContactBox from './ContactBox'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { useContactStore } from '~/zustand/contactStore'
-import { type Contact } from '~/types/contact'
-import { PhantomBox } from '.'
-import { useRef } from 'react'
-import { useLocation } from 'react-router'
-type ContactsProps = {
-  contacts: Contact[]
-}
+import { useRef } from "react";
+import { useLocation } from "react-router";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import ContactBox from "./ContactBox";
+import { PhantomBox } from ".";
+import { useContactStore } from "~/zustand/contactStore";
+import type { Contact } from "~/types/contact";
 
+/* ----------------------------- Props ---------------------------------- */
+type ContactsProps = {
+  contacts: Contact[];
+};
+
+/* -------------------------- Component --------------------------------- */
 export default function Contacts({ contacts }: ContactsProps) {
-  const contactLoadStatus = useContactStore(state => state.contactLoadStatus)
+  const contactLoadStatus = useContactStore((state) => state.contactLoadStatus);
   const location = useLocation();
 
+  // Reference to the scrollable container (virtualizer)
+  const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Reference to outer container to get height
+  const parentRef = useRef<HTMLDivElement>(null);
 
+  /* -------------------- Virtualizer Setup ----------------------------- */
+  const virtualizer = useVirtualizer({
+    count: contacts.length, // total number of items
+    getScrollElement: () => scrollRef.current, // scrollable container
+    estimateSize: () => 77, // estimated height of each item
+    overscan: 5, // render extra items above/below for smooth scrolling
+  });
 
-// reference to the scrollable container
-  const parentRef = useRef<HTMLDivElement>(null)
-  const parentElement = useRef<HTMLDivElement>(null);
-  
+  /* ------------------- Loading Placeholder --------------------------- */
+  if (contactLoadStatus === "loading") {
+    return <PhantomBox numberOfPhantomBoxes={10} css="h-[72px] w-full" />;
+  }
 
+  const virtualItems = virtualizer.getVirtualItems();
 
-const virtualizer = useVirtualizer({
-  //total items
-  count: contacts.length,
-  // get scroll element
-  getScrollElement: () => parentRef.current,
-  //height of each item
-  estimateSize: () => 77,
-  // render a few items for smooth scroll
-  overscan: 5
+  // Determine height of parent container (fallback 550px)
+  const parentHeight = parentRef.current
+    ? getComputedStyle(parentRef.current).height
+    : "550px";
 
-})
-
-if (contactLoadStatus === 'loading') {
-  return <PhantomBox numberOfPhantomBoxes={10} css={'h-18 w-full'} />
-}
-
-const virtualItems = virtualizer.getVirtualItems();
-
-const parentHeight = parentElement.current
-? parentElement.current && getComputedStyle(parentElement.current).height
-: '550px';
-
-return (
-  <div className='flex-1' ref={parentElement}>
-    <div
-    ref={parentRef}
-    style={{
-      height: parentHeight,
-      overflow: 'auto',
-      width: '100%',
-      paddingBottom: '48px'
-    }}
-  >
-    <div
-      style={{
-        height: `${virtualizer.getTotalSize()}px`,
-        position: 'relative',
-        width: '100%',
-      }}
-    >
-      {virtualItems.map(item => (
+  /* ---------------------------- Render -------------------------------- */
+  return (
+    <div className="flex-1" ref={parentRef}>
+      <div
+        ref={scrollRef}
+        style={{
+          height: parentHeight,
+          overflow: "auto",
+          width: "100%",
+          paddingBottom: "48px",
+        }}
+      >
         <div
-          key={item.key}
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: `${item.size}px`,
-            transform: `translateY(${item.start}px)`,
+            height: `${virtualizer.getTotalSize()}px`, // total virtual height
+            position: "relative",
+            width: "100%",
           }}
         >
-          <ContactBox
-            contact={contacts[item.index]}
-            index={item.index}
-          />
+          {virtualItems.map((item) => (
+            <div
+              key={item.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: `${item.size}px`,
+                transform: `translateY(${item.start}px)`,
+              }}
+            >
+              <ContactBox contact={contacts[item.index]} index={item.index} />
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
-  </div>
-  </div>
-)
+  );
 }
