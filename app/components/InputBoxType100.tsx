@@ -34,7 +34,7 @@ export default function InputBoxType100({
   return (
     <label
       htmlFor={`input-${label}`} // safer ID (removed #)
-      className="bg-bg-200 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]"
+      className="bg-bg-200 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px] gray-box gray-box-text"
     >
       {/* Left section: Icon + Input */}
       <div className="flex gap-2 items-center max-w-[90%]">

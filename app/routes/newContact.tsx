@@ -362,12 +362,18 @@ import {
   
         // Save both at once
         if (updates.contact && !updates.measurements) {
-          await upsertContact({
+          const res = await upsertContact({
             id: undefined,
             name: contact.name,
             phone: contact.phone,
             code: contact.code,
         });
+        if(res.status === 400) {
+          setShowContactNameError(true);
+        }
+        if(res.status === 401) {
+          setShowPhoneError(true);
+        }
         }
   
         // Save contact only
@@ -380,9 +386,10 @@ import {
             measurements: measurements
           });
         }
-        clear();
         return
-      } catch (err) {
+      } catch (err:any) {
+        if(err.status === 400) {
+        }
         console.error("Save failed:", err);
       }
     };
@@ -434,19 +441,7 @@ import {
             {contact.name?.trim() ? contact.name : "-"}
           </p>
         </section>
-  
-        {/* Actions */}
-        <section className="flex justify-between">
-          {ACTION_BUTTONS.map((btn, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <IconButton icon={btn.Icon} callback={() => {}} />
-              <p className="capitalize text-text-200 text-clr-200">
-                {btn.name}
-              </p>
-            </div>
-          ))}
-        </section>
-  
+
   
         <section className="flex flex-col gap-2 stroke-clr-200">
         {showContactNameError && <p className="text-text-200 mb-[-.4rem] text-danger" >name must not be empty</p>}

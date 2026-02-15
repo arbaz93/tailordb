@@ -53,4 +53,5 @@ function goToTop() {
     });
   }
 }
+
 export { hasSvgChild, isArray, isPlainObject, goToTop };

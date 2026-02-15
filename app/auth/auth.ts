@@ -140,7 +140,7 @@ async function handleLogin(
     Cookies.set(AUTH_COOKIE, base64Encode(JSON.stringify(loginPayload)), {
       expires: 7,
       sameSite: "Lax",
-      secure: true,
+      // secure: true,
     });
 
     setLoginInfo({

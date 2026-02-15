@@ -43,7 +43,7 @@ export default function Header({ text, icon: Icon = HomeIcon }: HeaderProps) {
       <div className="flex items-center gap-4">
         <Icon className="w-6 fill-clr-100" />
         <input
-          className={`w-full max-w-full font-semibold text-text-200 outline-none ${
+          className={`w-full max-w-full font-semibold text-clr-200 outline-none ${
             !isSearchRoute ? "placeholder-clr-100" : ""
           }`}
           value={inputText}

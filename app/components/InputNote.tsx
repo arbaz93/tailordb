@@ -16,7 +16,7 @@ export default function InputNote({ value, setter }: InputNoteProps) {
   return (
     <label
       htmlFor={inputId}
-      className="bg-bg-200 min-h-19.5 px-4 py-2.5 w-full sm:w-full rounded-[10px]"
+      className="bg-bg-200 min-h-19.5 px-4 py-2.5 w-full sm:w-full rounded-[10px] gray-box gray-box-text"
     >
       {/* Label */}
       <p className="text-text-300 text-clr-200 font-light">Note</p>

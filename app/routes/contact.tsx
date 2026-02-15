@@ -11,8 +11,10 @@ import {
   PhantomBox,
 } from "../components";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
+
+import { useColorSchemeStore } from "~/zustand/colorSchemeStore";
 
 import { base64Decode } from "~/utils/scripting";
 import { measurementsTemplate } from "~/utils/measurements";
@@ -104,7 +106,10 @@ export default function Contact() {
   const decoded: ContactProps = JSON.parse(base64Decode(encodedData));
 
   /* ---------------------------- State ---------------------------- */
-
+  
+  // set color scheme
+  const setColorScheme = useColorSchemeStore(state => state.setColorScheme)
+  const colorScheme = useColorSchemeStore(state => state.colorScheme)
   // Contact info (editable)
   const [contact, setContact] = useState({
     id: decoded.id,
@@ -115,36 +120,35 @@ export default function Contact() {
 
   // Measurements object (deep / nested)
   const [measurements, setMeasurements] = useState<any>({});
-
   // Template for when we recieve no measurements from the server
   const filteredTemplate = () => {
 
-    const newObj:any = {};
-  
+    const newObj: any = {};
+
     (Object.keys(measurementsTemplate) as Array<keyof typeof measurementsTemplate>)
       .forEach((key) => {
-  
+
         const outerValue = measurementsTemplate[key]
-  
+
         // ───────────── arrays (genders, basics)
         if (Array.isArray(outerValue)) {
           const arr = outerValue // local variable
           newObj[key] = arr.map((e: any) => ({ label: e.label, value: e.value }))
         }
-  
+
         // ───────────── objects (maleMeasurements, femaleMeasurements)
         else if (isPlainObject(outerValue)) {
-  
+
           const value = outerValue as Record<string, unknown>
-  
+
           // ✅ initialize container
           newObj[key] = {}
-  
+
           Object.keys(value).forEach((k) => {
             const innerValue = value[k]
-  
+
             if (Array.isArray(innerValue)) {
-              ;(newObj[key] as Record<string, unknown>)[k] =
+              ; (newObj[key] as Record<string, unknown>)[k] =
                 innerValue.map((e) => ({
                   label: e.label,
                   value: e.value,
@@ -153,7 +157,7 @@ export default function Contact() {
           })
         }
       })
-  
+
     return newObj;
   }
   // Extra measurement schema stored locally
@@ -200,8 +204,154 @@ export default function Contact() {
     [measurements]
   );
 
+  /* ------------- Handle Primary Color Round Buttons ---------------- */
+
+  const printOneRef = useRef<HTMLElement>(null);
+
+  const handlePrint = async () => {
+    const sectionIds: string[] = ["section-1", "section-2", "section-3"]
+    if (typeof window === "undefined") return;
+
+    // Add a temporary class to show only selected sections
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add("print-visible");
+    });
+
+    const prevColorScheme = colorScheme
+
+    window.print();
+
+    // Cleanup: remove the temporary class
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove("print-visible");
+    });
+  };
+
+  const handleEmail = () => {
+    // Ensure this only runs in the browser (Next.js / SSR safety)
+    if (typeof window === "undefined") return;
+
+    // Cache measurement references
+    const femaleBody = measurements?.femaleMeasurements;
+    const maleBody = measurements?.maleMeasurements;
+
+    // Allowed gender values
+    type GenderType = "male" | "female" | undefined;
+
+    // Measurement body sections
+    type BodyPart = "upperBody" | "lowerBody";
+
+    /**
+     * Formats an array of measurements into a readable multiline string
+     */
+    const formatList = (
+      data?: { label: string; value: string | number }[],
+      indent = "              "
+    ): string =>
+      data
+        ?.filter(item => item.value)
+        .map(item => `${item.label}: ${item.value}`)
+        .join(`\n${indent}`) ?? "";
+
+    /**
+     * Returns formatted upper/lower body measurements
+     * - If gender is provided → returns that gender only
+     * - Otherwise → returns both male & female
+     */
+    const getBody = (gender: GenderType, part: BodyPart): string => {
+      if (gender === "male" || gender === "female") {
+        const body =
+          gender === "female"
+            ? femaleBody?.[part]
+            : maleBody?.[part];
+
+        return `
+  ${part}:
+    ${formatList(body)}
+  `;
+      }
+
+      return `
+  male ${part}:
+    ${formatList(maleBody?.[part])}
   
-    
+  female ${part}:
+    ${formatList(femaleBody?.[part])}
+  `;
+    };
+
+    // Generate body sections
+    const upperBody = getBody(measurements?.genders, "upperBody");
+    const lowerBody = getBody(measurements?.genders, "lowerBody");
+
+    /**
+     * Optional measurement sections
+     */
+    const basics = measurements?.basics?.length
+      ? `
+  basics:
+    ${formatList(measurements.basics)}
+  `
+      : "";
+    const extra = measurements?.extra?.length
+      ? `
+  extra:
+    ${formatList(measurements.extra)}
+  `
+      : "";
+
+    const note = measurements?.note
+      ? `
+  note:
+      ${measurements.note}
+  `
+      : "";
+
+    /**
+     * Build & encode the email body
+     */
+    const body = encodeURIComponent(`
+  Name: ${contact?.name}
+  Phone: ${contact?.phone}
+  Dress Code: ${contact?.code}
+  
+  Measurements:
+  ${basics}
+  gender: ${measurements?.genders}
+  ${upperBody}
+  ${lowerBody}
+  ${extra}
+  ${note}
+  `);
+
+    // Create and trigger mailto link
+    const link = document.createElement("a");
+    link.href = `mailto:?subject=Report&body=${body}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+
+  const handleCall = () => {
+    if (typeof window != undefined) {
+      window.location.href = `tel:${contact.phone}`
+    }
+  }
+  const handleMessage = () => {
+    if (typeof window != undefined) {
+      window.location.href = `sms:${contact.phone}`
+    }
+  }
+
+  const ACTION_BUTTONS_CALLBACKS = {
+    call: handleCall,
+    message: handleMessage,
+    print: handlePrint,
+    email: handleEmail
+  }
   /**
    * Update measurement value (deep + immutable)
    */
@@ -212,7 +362,7 @@ export default function Contact() {
         if (section === "extra") {
           const extra = [...(prev.extra ?? [])];
           const index = extra.findIndex((m) => m.label === label);
-  
+
           if (index === -1) {
             extra.push(
               typeof value === "boolean"
@@ -222,18 +372,18 @@ export default function Contact() {
           } else {
             extra[index] = { label, value };
           }
-  
+
           return { ...prev, extra };
         }
-  
+
         // STANDARD sections (basics / upperBody / lowerBody)
         const path = section.split(".");
         const rootKey = path[0];
         const subKey = path[1]; // undefined for basics
-  
+
         // Create new next state
         const next: any = { ...prev };
-  
+
         if (!subKey) {
           // basics
           next[rootKey] = prev[rootKey].map((m: any) =>
@@ -248,13 +398,13 @@ export default function Contact() {
             ),
           };
         }
-  
+
         return next;
       });
     },
     []
   );
-  
+
 
   /* ---------------------------- Input Renderer ---------------------------- */
 
@@ -263,7 +413,7 @@ export default function Contact() {
    */
   const renderInput = (m: any, section: Section, index: number) => {
     const isExtra = section === "extra";
-    const iconCss = `${m?.css ?? ""} h-5 w-5`;
+    const iconCss = `${m?.css ?? ""} h-5 w-5 m-icon`;
 
     switch (m.type) {
       case "text":
@@ -319,7 +469,7 @@ export default function Contact() {
             icon={InfoIcon}
             iconCss="h-6 w-6"
             checked={measurements?.extra?.find((e: any) => e.label === m.label)
-              ?.checked ?? false}
+              ?.value ?? false}
             setter={(v) => {
               markMeasurementsUpdated();
               updateMeasurement("extra", m.label, v);
@@ -343,7 +493,50 @@ export default function Contact() {
    * Load local extras + fetch measurements
    */
 
-
+  // Merge Both templateMEasurements and server recieved measurements
+  function deepMerge(template: any, serverData: any): any {
+    if (Array.isArray(template)) {
+      // If template is array of objects with label
+      return template.map(item => {
+        if (item.label) {
+          // find corresponding server item
+          const serverItem = Array.isArray(serverData)
+            ? serverData.find((s: any) => s.label === item.label)
+            : undefined;
+          return {
+            ...item,
+            value: serverItem?.value ?? item.value,
+          };
+        }
+        // Otherwise, recursively merge
+        return deepMerge(item, serverData);
+      });
+    } else if (Array.isArray(serverData)) {
+      // template is not array, serverData is array → just use serverData
+      return serverData;
+    } else if (typeof template === "object" && template !== null) {
+      const result: any = { ...template };
+  
+      // Merge template keys
+      for (const key in template) {
+        result[key] = deepMerge(template[key], serverData?.[key]);
+      }
+  
+      // Add extra keys from serverData
+      if (serverData && typeof serverData === "object") {
+        for (const key in serverData) {
+          if (!(key in template)) {
+            result[key] = serverData[key];
+          }
+        }
+      }
+  
+      return result;
+    } else {
+      // primitive → take serverData if exists, else template
+      return serverData !== undefined ? serverData : template;
+    }
+  }
   
   useEffect(() => {
     // Local storage (safe parse)
@@ -354,21 +547,23 @@ export default function Contact() {
       setLocalExtraMeasurements([]);
     }
 
-     
+
     if (!contact.id) {
       setMeasurementsStatus({ status: 400, message: "Missing contact id" });
       return;
     }
-    
+
     getMeasurements(contact.id).then((res) => {
+
       if ("data" in res) {
         // success
+        const mergedMeasurements = deepMerge(filteredTemplate(), res.data?.measurements);
         setMeasurements(
           res.status === 404
             ? { ...filteredTemplate() }
-            : res.data?.measurements
+            : mergedMeasurements
         );
-    
+
         setMeasurementsStatus({
           status: res.status,
           message: "Loaded successfully",
@@ -376,15 +571,15 @@ export default function Contact() {
       } else {
         // error
         setMeasurements({ ...filteredTemplate() });
-    
+
         setMeasurementsStatus({
           status: res.status,
           message: res.message,
         });
       }
-    
+
     });
-    
+
   }, [contact.id]);
 
   /* ---------------------------- Memo ---------------------------- */
@@ -410,9 +605,9 @@ export default function Contact() {
 
     // if name or phone are empty
     const hasEmptyRequiredFields =
-    !contact?.name?.trim() || !contact?.phone?.trim();
-  
-  if (hasEmptyRequiredFields) goToTop();
+      !contact?.name?.trim() || !contact?.phone?.trim();
+
+    if (hasEmptyRequiredFields) goToTop();
 
     // Save both at once
     if (updates.contact && updates.measurements) {
@@ -420,45 +615,45 @@ export default function Contact() {
         ...contact,
         measurements,
       });
-  
+
       if (!("data" in res)) {
         console.error("Save failed:", res.message);
         return;
       }
-  
+
       return;
     }
-  
+
     // Save contact only
     if (updates.contact) {
       const res = await upsertContact(contact);
-  
+
       if (!("data" in res)) {
         console.error("Save failed:", res.message);
         return;
       }
-  
+
       contactId = res.data?._id ?? contactId;
     }
-  
+
     // Save measurements only
     if (updates.measurements && contactId) {
       const res = await saveMeasurements({
         id: contactId,
         measurements,
       });
-  
+
       if (!("data" in res)) {
         console.error("Save failed:", res.message);
         return;
       }
     }
   };
-  
+
   /* ---------------------------- Delete Logic ---------------------------- */
   const handleDelete = async () => {
     const res = await deleteContactWithMeasurements(contact.id)
-    if(res.status === 200) {
+    if (res.status === 200) {
       navigate("/")
     }
   }
@@ -500,22 +695,22 @@ export default function Contact() {
   return (
     <main className="px-8 flex flex-col gap-8 pb-20">
       {/* Header */}
-      <section className="flex flex-col items-center gap-4 pt-15">
+      <section ref={printOneRef} id="section-1" className="flex flex-col items-center gap-4 pt-15  print-visible">
         <CircleWithInitial
           text={contact.name?.trim() ? contact.name : "-"}
-          css="text-[50px]"
+          css="text-[50px] circle-with-inital"
           index={decoded.index}
         />
-        <p className="capitalize text-heading-200 text-clr-100">
+        <p className="capitalize text-heading-200 text-clr-100 print-heading">
           {contact.name?.trim() ? contact.name : "-"}
         </p>
       </section>
 
       {/* Actions */}
-      <section className="flex justify-between">
+      <section className="flex justify-between no-print">
         {ACTION_BUTTONS.map((btn, i) => (
           <div key={i} className="flex flex-col items-center gap-1">
-            <IconButton icon={btn.Icon} callback={() => { }} />
+            <IconButton icon={btn.Icon} callback={() => { ACTION_BUTTONS_CALLBACKS[btn.name]() }} />
             <p className="capitalize text-text-200 text-clr-200">
               {btn.name}
             </p>
@@ -523,28 +718,29 @@ export default function Contact() {
         ))}
       </section>
 
-
-      <section className="flex flex-col gap-2 stroke-clr-200">
-      
+      {/* Contact */}
+      <section className="flex flex-col gap-2 stroke-clr-200  print-visible" id="section-2">
+      <h3 className="text-clr-100 text-heading-200">Contact:</h3>
         {showContactNameError && <p className="text-text-200 mb-[-.4rem] text-danger" >name must not be empty</p>}
-        <InputBoxType100 required={true} iconCss=" h-6 w-6 fill-clr-200" text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
+        <InputBoxType100 required={true} iconCss=" h-6 w-6 fill-clr-200 m-icon" text={contact.name} icon={InfoSimpleIcon} label={'Name'} setter={(value) => {
           setContact(prev => ({ ...prev, name: value }));
           markContactUpdated();
           setShowContactNameError(value.trim().length === 0);
         }} />
         {showPhoneError && <p className="text-text-200 mb-[-.4rem] text-danger">phone must not be empty</p>}
-        <InputBoxType100 required={true} iconCss=" w-6 stroke-clr-200" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
+        <InputBoxType100 required={true} iconCss=" w-6 stroke-clr-200 m-icon" text={contact.phone} icon={PhoneStrokeIcon} label={'Mobile'} setter={(value) => {
           setContact(prev => ({ ...prev, phone: value }));
           markContactUpdated();
           setShowPhoneError(value.trim().length === 0);
-          }} />
-        <InputBoxType100 required={true} iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg]" text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
+        }} />
+        <InputBoxType100 required={true} iconCss="w-6 fill-clr-200 text-clr-200 rotate-[180deg] m-icon " text={contact.code} icon={ScissorThinIcon} label={'Dress Code'} setter={(value) => {
           setContact(prev => ({ ...prev, code: value }))
           markContactUpdated();
         }} />
       </section>
 
-      <section className="flex flex-col gap-4">
+      {/* Measurements */}
+      <section className="flex flex-col gap-4  print-visible"  id="section-3">
         <h3 className="text-clr-100 text-heading-200">Measurements:</h3>
         <div className="grid gap-2">
           <h4 className="text-clr-100 text-text-100">Basic:</h4>
@@ -599,15 +795,16 @@ export default function Contact() {
 
 
 
-        {/* Save / Delete */}
-        <section className="grid gap-2">
-          <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
-          <Button100
-            text="Delete"
-            css="bg-danger text-white"
-            callback={handleDelete}
-          />
-        </section>
+      {/* Save / Delete */}
+      <section className="grid gap-2">
+        <Button100 text="Save" css="bg-primary text-white" callback={saveAll} />
+        <Button100
+          text="Delete"
+          css="bg-danger text-white"
+          callback={handleDelete}
+        />
+
+      </section>
 
       <AddExtraBox
         modalIsShowing={modalIsShowing}

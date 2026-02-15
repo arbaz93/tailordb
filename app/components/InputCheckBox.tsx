@@ -54,7 +54,7 @@ export default function InputCheckBox({
   return (
     <label
       htmlFor={inputId}
-      className="bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]"
+      className="bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px] gray-box"
     >
       <div className="flex gap-2 items-center justify-between w-full">
         {/* Left icon */}

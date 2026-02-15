@@ -170,7 +170,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loginInfo.status === "102"}
-              className={`w-full max-w-67 p-3 rounded-md bg-primary text-clr-100 transition hover:bg-primary cursor-pointer ${
+              className={`w-full max-w-67 p-3 rounded-md bg-primary text-white transition hover:bg-primary cursor-pointer ${
                 loginInfo.status === "102" ? "opacity-85" : ""
               }`}
             >

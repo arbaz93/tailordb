@@ -2,7 +2,6 @@ import axios from "axios";
 import { createContactIndex } from "~/lunr/lunrFunctions";
 import { useContactStore } from "~/zustand/contactStore";
 import { useNotificationStore } from "~/zustand/notificationStore";
-
 const API_URL = import.meta.env.VITE_SERVER_LINK;
 
 /* ------------------------------------------------------------------ */
@@ -128,7 +127,7 @@ async function upsertContact(payload: {
   }
 
   if (!payload.phone) {
-    return { status: 400, message: "Phone is required" };
+    return { status: 401, message: "Phone is required" };
   }
 
   try {
@@ -211,6 +210,78 @@ async function deleteContactWithMeasurements(
   }
 }
 
+
+// This function only returns measurements that has a value
+function trimMeasurements(measurements: any) {
+  // Initialize output with guaranteed object shapes
+  const trimmedMeasurements: any = {
+    femaleMeasurements: {},
+    maleMeasurements: {},
+  };
+
+  // Filter helpers — keep only items that have a truthy value
+  const basics =
+    Array.isArray(measurements?.basics)
+      ? measurements.basics.filter((m: any) => m?.value)
+      : undefined;
+
+  const femaleUpperBody =
+    Array.isArray(measurements?.femaleMeasurements?.upperBody)
+      ? measurements.femaleMeasurements.upperBody.filter((m: any) => m?.value)
+      : undefined;
+
+  const femaleLowerBody =
+    Array.isArray(measurements?.femaleMeasurements?.lowerBody)
+      ? measurements.femaleMeasurements.lowerBody.filter((m: any) => m?.value)
+      : undefined;
+
+  const maleUpperBody =
+    Array.isArray(measurements?.maleMeasurements?.upperBody)
+      ? measurements.maleMeasurements.upperBody.filter((m: any) => m?.value)
+      : undefined;
+
+  const maleLowerBody =
+    Array.isArray(measurements?.maleMeasurements?.lowerBody)
+      ? measurements.maleMeasurements.lowerBody.filter((m: any) => m?.value)
+      : undefined;
+
+  // Copy primitive fields safely
+  if (typeof measurements?.genders === "string") {
+    trimmedMeasurements.genders = measurements.genders;
+  }
+
+  if (basics?.length) {
+    trimmedMeasurements.basics = basics;
+  }
+
+  // Assign nested measurements only when data exists
+  if (femaleUpperBody?.length) {
+    trimmedMeasurements.femaleMeasurements.upperBody = femaleUpperBody;
+  }
+
+  if (femaleLowerBody?.length) {
+    trimmedMeasurements.femaleMeasurements.lowerBody = femaleLowerBody;
+  }
+
+  if (maleUpperBody?.length) {
+    trimmedMeasurements.maleMeasurements.upperBody = maleUpperBody;
+  }
+
+  if (maleLowerBody?.length) {
+    trimmedMeasurements.maleMeasurements.lowerBody = maleLowerBody;
+  }
+
+  // Optional fields
+  if (measurements?.extra) {
+    trimmedMeasurements.extra = measurements.extra;
+  }
+
+  if (measurements?.note) {
+    trimmedMeasurements.note = measurements.note;
+  }
+
+  return trimmedMeasurements;
+}
 /* ------------------------------------------------------------------ */
 /* Measurements */
 /* ------------------------------------------------------------------ */
@@ -237,11 +308,12 @@ async function saveMeasurements(payload: {
   measurements: Measurements;
 }): Promise<ApiResult<any>> {
   try {
+    const trimmedMeasurements = trimMeasurements(payload.measurements);
     setNotification({ text:"saving measurements", type:"processing", status: 102, displayModal:true})
 
     const res = await axios.put(
       `${API_URL}/measurements/${payload.id}`,
-      { measurements: payload.measurements }
+      { measurements: trimmedMeasurements }
     );
     setNotification({ text:"measurements saved", type:"success", status: res.status})
     hideNotificationAfterTime(defaultNotificationTime)
@@ -262,12 +334,13 @@ async function saveContactAndMeasurements(payload: {
   code?: string;
   measurements: Measurements;
 }): Promise<ApiResult<any>> {
+  const trimmedMeasurements = trimMeasurements(payload.measurements);
   try {
     setNotification({ text:"saving contact", type:"processing", status: 102, displayModal: true})
 
     const res = await axios.post(
       `${API_URL}/contacts/save-with-measurements`,
-      payload
+      {...payload, measurements:trimmedMeasurements}
     )
     useContactStore.getState().addContact(res.data.contact)
     setNotification({ text:res.statusText, type:"success", status: res.status})

@@ -29,7 +29,7 @@ export default function CircleWithInitial({ text, index, css = "" }: CircleProps
       "bg-rose-800",
     ];
 
-    return index === undefined ? "bg-gray-100" : colors[index % colors.length];
+    return index === undefined ? "bg-gray-400" : colors[index % colors.length];
   };
 
   return (

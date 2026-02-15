@@ -16,7 +16,7 @@ export default function SplashScreen({ display, pulse }: { display: boolean, pul
 
   return (
     <div
-      className={`bg-splash-screen absolute inset-0 items-center flex-col z-50 ` +
+      className={`bg-splash-screen fixed inset-0 items-center flex-col z-50 ` +
         (display ? 'flex' : 'hidden')} // show or hide the splash screen
     >
       {/* Logo */}

@@ -31,9 +31,9 @@ export default function ContactBox({ contact, index }: ContactBoxProps) {
   )}`;
 
   return (
-    <div className="flex justify-between items-center h-18 max-w-full bg-bg-200 rounded-lg pl-2 pr-4 overflow-hidden">
+    <div  className="flex justify-between items-center h-18 max-w-full duration-100 hover:opacity-80 focus:opacity-80 focus-within:opacity-80 bg-bg-200 rounded-lg pl-2 pr-4 overflow-hidden">
       {/* Left section: Circle + Contact info */}
-      <div className="flex gap-2">
+      <Link to={address} className="flex gap-2">
         <div className="w-15 my-1.5">
           <CircleWithInitial text={contact.name} index={index} css="text-heading-100" />
         </div>
@@ -64,7 +64,7 @@ export default function ContactBox({ contact, index }: ContactBoxProps) {
             </div>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Right section: Link to detailed contact */}
       <Link to={address} className="flex h-full justify-center items-center">
