@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { useColorSchemeStore } from "~/zustand/colorSchemeStore";
+import { useNotificationStore } from "~/zustand/notificationStore";
 
 import { base64Decode } from "~/utils/scripting";
 import { measurementsTemplate } from "~/utils/measurements";
@@ -110,6 +111,10 @@ export default function Contact() {
   // set color scheme
   const setColorScheme = useColorSchemeStore(state => state.setColorScheme)
   const colorScheme = useColorSchemeStore(state => state.colorScheme)
+
+  // notifications
+  const notification = useNotificationStore(state => state.notification);
+
   // Contact info (editable)
   const [contact, setContact] = useState({
     id: decoded.id,
@@ -187,6 +192,9 @@ export default function Contact() {
   const markMeasurementsUpdated = () =>
     setUpdates((p) => ({ ...p, measurements: true }));
 
+  const unMarkContactAndMeasurementsUpdated = () =>
+    setUpdates(() => ({ contact: false, measurements: false }));
+  
   /**
    * Safely read a value from a nested measurement section
    */
@@ -601,6 +609,8 @@ export default function Contact() {
   /* ---------------------------- Save Logic ---------------------------- */
 
   const saveAll = async () => {
+    if(notification.type === "processing") return;
+
     let contactId = contact.id;
 
     // if name or phone are empty
@@ -620,7 +630,7 @@ export default function Contact() {
         console.error("Save failed:", res.message);
         return;
       }
-
+      unMarkContactAndMeasurementsUpdated()
       return;
     }
 
@@ -632,7 +642,7 @@ export default function Contact() {
         console.error("Save failed:", res.message);
         return;
       }
-
+      unMarkContactAndMeasurementsUpdated()
       contactId = res.data?._id ?? contactId;
     }
 
@@ -647,11 +657,14 @@ export default function Contact() {
         console.error("Save failed:", res.message);
         return;
       }
+      unMarkContactAndMeasurementsUpdated()
     }
   };
 
   /* ---------------------------- Delete Logic ---------------------------- */
   const handleDelete = async () => {
+    if(notification.type === "processing") return
+
     const res = await deleteContactWithMeasurements(contact.id)
     if (res.status === 200) {
       navigate("/")

@@ -12,9 +12,11 @@ import {
   
   import { useEffect, useMemo, useState, useCallback } from "react";
 
+  import { useNotificationStore } from "~/zustand/notificationStore";
+
   import { measurementsTemplate } from "~/utils/measurements";
   import { isPlainObject, goToTop } from "~/utils/helperFunctions";
-
+  
   import {
     saveContactAndMeasurements,
     upsertContact,
@@ -88,7 +90,9 @@ import {
   const [showContactNameError, setShowContactNameError] = useState<Boolean>(false);
   const [showPhoneError, setShowPhoneError] = useState<Boolean>(false);
     /* ---------------------------- State ---------------------------- */
-  
+
+    // notifications
+    const notification = useNotificationStore(state => state.notification);
     // Contact info (editable)
     const [contact, setContact] = useState({
       id:"",
@@ -165,6 +169,8 @@ import {
 
     const markMeasurementsUpdated = () =>
       setUpdates((p) => ({ ...p, measurements: true }));
+    const unMarkContactAndMeasurementsUpdated = () =>
+      setUpdates(() => ({ contact: false, measurements: false }));
 
     const clear = () => {
       setMeasurements(filteredTemplate)
@@ -350,7 +356,7 @@ import {
     /* ---------------------------- Save Logic ---------------------------- */
   
     const saveAll = async () => {
-
+      if(notification.type === "processing") return
       // if name or phone are empty
       const hasEmptyRequiredFields =
         !contact?.name?.trim() || !contact?.phone?.trim();
@@ -374,6 +380,8 @@ import {
         if(res.status === 401) {
           setShowPhoneError(true);
         }
+        clear()
+        unMarkContactAndMeasurementsUpdated()
         }
   
         // Save contact only
@@ -386,6 +394,8 @@ import {
             measurements: measurements
           });
         }
+        clear()
+        unMarkContactAndMeasurementsUpdated()
         return
       } catch (err:any) {
         if(err.status === 400) {

@@ -4,6 +4,7 @@
  */
 
 import { useColorSchemeStore } from "~/zustand/colorSchemeStore";
+import { useNotificationStore } from "~/zustand/notificationStore";
 
 import logoBlack from "../assets/logo black.svg";
 import logoWhite from "../assets/logo-white-black.svg";
@@ -24,7 +25,7 @@ export default function About() {
   /* ------------------------------ State -------------------------------- */
 
   const colorScheme = useColorSchemeStore((state) => state.colorScheme);
-
+  const notification = useNotificationStore((state) => state.notification);
   /**
    * Select logo based on current color scheme
    */
@@ -101,7 +102,7 @@ export default function About() {
         <Button100
           text="LOGOUT"
           css="bg-danger text-white"
-          callback={handleLogout}
+          callback={() => {handleLogout}}
         />
       </section>
     </main>

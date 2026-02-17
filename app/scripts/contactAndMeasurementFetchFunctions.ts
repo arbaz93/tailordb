@@ -27,7 +27,7 @@ type ApiResult<T> = ApiSuccess<T> | ApiError;
 /* ------------------------------------------------------------------ */
 /* Show Notification Helper */
 /* ------------------------------------------------------------------ */
-type NotificationStatusType = "success" | "error" | "processing" | "warning";
+type NotificationStatusType = "success" | "error" | "processing" | "warning" | "waiting";
 
 type NotificationPropsType = {
   text?: string;

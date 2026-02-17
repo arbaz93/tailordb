@@ -8,7 +8,7 @@ import { create } from "zustand";
 /* ----------------------------- Types ---------------------------------- */
 
 /** Allowed notification types */
-type NotificationStatusType = "success" | "error" | "processing" | "warning";
+type NotificationStatusType = "success" | "error" | "processing" | "warning" | "waiting";
 
 /** Shape of a notification */
 type Notification = {
@@ -33,7 +33,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
   notification: {
     text: "",
     status: 100,
-    type: "processing",
+    type: "waiting",
     displayModal: false,
   },
 
