@@ -25,6 +25,7 @@ type FormProps = {
   className: string;
   children: React.ReactNode;
   loginInputs: FormInputs;
+  status: string | number; 
 };
 
 /* ----------------------------- Form Component ------------------------- */
@@ -32,11 +33,17 @@ type FormProps = {
 /**
  * Controlled form component for login submission
  */
-function Form({ method, className, children, loginInputs }: FormProps) {
+function Form({ method, className, children, loginInputs, status }: FormProps) {
   const setLoginInfo = useLoginStore((state) => state.setLoginInfo);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if(status === 102) return
+    setLoginInfo((prev) => ({
+      ...prev,
+      status: 102,
+      statusMessage: "signing in"
+    }))
     await handleLogin(loginInputs, setLoginInfo);
   };
 
@@ -123,6 +130,7 @@ export default function LoginPage() {
             method="post"
             className="flex flex-col items-center gap-4"
             loginInputs={formInputs}
+            status={loginInfo.status}
           >
             {/* Username */}
             <div className="text-left">
@@ -169,12 +177,12 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loginInfo.status === "102"}
+              disabled={loginInfo.status === 102}
               className={`w-full max-w-67 p-3 rounded-md bg-primary text-white transition hover:bg-primary cursor-pointer ${
-                loginInfo.status === "102" ? "opacity-85" : ""
+                loginInfo.status === 102 ? "opacity-85" : ""
               }`}
             >
-              {loginInfo.status === "102" ? (
+              {loginInfo.status === 102 ? (
                 <div className="flex w-full justify-center">
                   <Spinner spin css="fill-clr-100" width="24px" />
                 </div>
