@@ -790,7 +790,7 @@ export default function Contact() {
             {measurementsStatus?.status == 200 || measurementsStatus?.status == 404 ? extraMeasurements : <PhantomBox numberOfPhantomBoxes={localExtraMeasurements?.length} css={'h-15 w-full'} />}
 
 
-            <button className='bg-bg-200 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
+            <button className='bg-bg-200 text-clr-100 h-15 px-4 py-2.5 w-full flex items-center justify-between rounded-[10px]' onClick={() => setModalIsShowing(true)}>
               <div className='flex gap-2 items-center justify-between w-full'>
                 <div className='flex-1'>
                   +
