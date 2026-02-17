@@ -122,7 +122,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           content="tailor, tailor database, manage tailors, tailor services, tailor profiles, find tailors, tailor locations"
         />
         <meta name="author" content="Yousaf Arbaz" />
-
+       
         <Meta />
         <Links />
       </head>

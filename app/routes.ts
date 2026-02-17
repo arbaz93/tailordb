@@ -35,7 +35,5 @@ export default [
 
     // About page (/about)
     route("about", "./routes/about.tsx"),
-
-    route("print", "./routes/print.tsx"),
   ]),
 ];
