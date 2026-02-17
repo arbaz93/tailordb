@@ -9,9 +9,7 @@ export const handler: Handler = async (event) => {
   const request = new Request(event.rawUrl, {
     method: event.httpMethod,
     headers: event.headers as HeadersInit,
-    body: event.body
-      ? Buffer.from(event.body, "base64")
-      : undefined,
+    body: event.body ? Buffer.from(event.body, "base64") : undefined,
   });
 
   const response = await rrHandler(request);
