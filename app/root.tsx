@@ -77,6 +77,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     hydrateColorScheme();
     setPageReady(true);
+
+
+    if("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+    }
   }, [hydrateColorScheme]);
 
   /**
@@ -121,6 +126,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           name="keywords"
           content="tailor, tailor database, manage tailors, tailor services, tailor profiles, find tailors, tailor locations"
         />
+        <link rel="shortcut icon" href="icons/pwa-192x192.png" type="image/x-icon" />
+        <link rel="manifest" href="/manifest.json" />
         <meta name="author" content="Yousaf Arbaz" />
        
         <Meta />
