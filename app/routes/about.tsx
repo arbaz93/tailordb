@@ -102,7 +102,7 @@ export default function About() {
         <Button100
           text="LOGOUT"
           css="bg-danger text-white"
-          callback={() => {handleLogout}}
+          callback={handleLogout}
         />
       </section>
     </main>

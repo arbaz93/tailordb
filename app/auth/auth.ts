@@ -176,6 +176,7 @@ async function handleLogin(
  * Logs out user by clearing cookie and reloading the page
  */
 async function handleLogout() {
+  
   try {
     useNotificationStore.setState({
       notification: {
@@ -196,6 +197,7 @@ async function handleLogout() {
 
     return { status: 200, statusMessage: "Logout success" };
   } catch (err: any) {
+    console.error(err);
     useNotificationStore.setState({
       notification: {
         text: "Failed to logout!",
