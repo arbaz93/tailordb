@@ -109,12 +109,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     fetchContacts();
   }, [loginInfo]);
 
-  /**
-   * Update active navigation tab based on URL
+
+    /**
+   * Animate page when route is changed
    */
 
   useGSAP(() => {
-    if (!pageRef.current) return;
+    if (typeof window === 'undefined' || !pageRef.current) return;
 
     const tl = gsap.timeline({ defaults: { ease: 'power1.out' } });
 
@@ -136,6 +137,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => tl.kill();
   }, [location.pathname]);
 
+  /**
+   * Update active navigation tab based on URL
+   */
 
   useEffect(() => {
     const pathSegment = location.pathname.split("/")[1];
