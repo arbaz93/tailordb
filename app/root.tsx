@@ -11,10 +11,16 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Route } from "./+types/root";
-import "./app.css";
+
+/* ----------------------------- GSAP ----------------------------- */
+
+import gsap from "gsap";
+import { useGSAP } from '@gsap/react';
+
+
 
 /* ----------------------------- Components ----------------------------- */
 import {
@@ -24,6 +30,7 @@ import {
   SplashScreen,
 } from "./components";
 import Error from "./routes/error";
+import "./app.css";
 
 /* ------------------------------- Stores -------------------------------- */
 import { useColorSchemeStore } from "./zustand/colorSchemeStore";
@@ -69,6 +76,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState("home");
   const [pageReady, setPageReady] = useState(false);
 
+  const pageRef = useRef<HTMLDivElement | null>(null)
   /* -------------------------- Effects ---------------------------------- */
 
   /**
@@ -105,6 +113,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
   /**
    * Update active navigation tab based on URL
    */
+
+  useGSAP(() => {
+    if (!pageRef.current) return;
+
+    const tl = gsap.timeline({ defaults: { ease: 'power1.out' } });
+
+    // Fade out very subtly (slight scale down)
+    tl.to(pageRef.current, {
+      opacity: 0,
+      scale: 0.995,
+      duration: 0.1
+    });
+
+    // Fade in gently with scale back to normal
+    tl.fromTo(
+      pageRef.current,
+      { opacity: 0, scale: 0.995 },
+      { opacity: 1, scale: 1, duration: .5 },
+      '-=0.1' // slight overlap for smoothness
+    );
+
+    return () => tl.kill();
+  }, [location.pathname]);
+
+
   useEffect(() => {
     const pathSegment = location.pathname.split("/")[1];
     setActiveTab(pathSegment || "home");
@@ -122,6 +155,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1"
         />
+        <link href="/title-logo.png" rel="icon" />
         <meta
           name="keywords"
           content="tailor, tailor database, manage tailors, tailor services, tailor profiles, find tailors, tailor locations"
@@ -153,7 +187,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Route content */}
+        <div ref={pageRef}>
+
         {children}
+        </div>
 
         {/* Footer (hidden on auth page) */}
         {!isAuthPage && (
