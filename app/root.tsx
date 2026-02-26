@@ -19,8 +19,7 @@ import type { Route } from "./+types/root";
 
 import gsap from "gsap";
 import { useGSAP } from '@gsap/react';
-gsap.registerPlugin(useGSAP)
-
+gsap.registerPlugin(useGSAP); // register the hook to avoid React version discrepancies 
 
 /* ----------------------------- Components ----------------------------- */
 import {
