@@ -15,15 +15,6 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Route } from "./+types/root";
 
-/* ----------------------------- GSAP ----------------------------- */
-let gsap;
-if (typeof window !== 'undefined') {
-  gsap = await import('gsap');
-}
-import { useGSAP } from '@gsap/react';
-if(gsap) {
-  gsap.registerPlugin(useGSAP); // register the hook to avoid React version discrepancies 
-}
 
 /* ----------------------------- Components ----------------------------- */
 import {
@@ -118,29 +109,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
    * Animate page when route is changed
    */
 
-  useGSAP(() => {
-    if (typeof window === 'undefined' || !pageRef.current) return;
+  // Run animations client-side
+  useEffect(() => {
+    if (!pageRef.current) return;
 
-    const tl = gsap.timeline({ defaults: { ease: 'power1.out' } });
+    // Dynamically import gsap and the React plugin
+    let tl: any;
 
-    // Fade out very subtly (slight scale down)
-    tl.to(pageRef.current, {
-      opacity: 0,
-      scale: 0.995,
-      duration: 0.1
-    });
+    (async () => {
+      const gsapModule = await import('gsap');
+      const reactPluginModule = await import('@gsap/react');
 
-    // Fade in gently with scale back to normal
-    tl.fromTo(
-      pageRef.current,
-      { opacity: 0, scale: 0.995 },
-      { opacity: 1, scale: 1, duration: .5 },
-      '-=0.1' // slight overlap for smoothness
-    );
+      const gsap = gsapModule.default;
+      const { useGSAP } = reactPluginModule;
 
-    return () => tl.kill();
+      gsap.registerPlugin(useGSAP);
+
+      tl = gsap.timeline({ defaults: { ease: 'power1.out' } });
+
+      // Fade out + subtle scale
+      tl.to(pageRef.current, { opacity: 0, scale: 0.98, duration: 0 });
+
+      // Fade in back
+      tl.to(pageRef.current, { opacity: 1, scale: 1,  duration: .6 }, '-=0.15');
+    })();
+
+    // Cleanup
+    return () => tl?.kill();
   }, [location.pathname]);
-
   /**
    * Update active navigation tab based on URL
    */
