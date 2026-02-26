@@ -16,10 +16,14 @@ import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/root";
 
 /* ----------------------------- GSAP ----------------------------- */
-
-import gsap from "gsap";
+let gsap;
+if (typeof window !== 'undefined') {
+  gsap = await import('gsap');
+}
 import { useGSAP } from '@gsap/react';
-gsap.registerPlugin(useGSAP); // register the hook to avoid React version discrepancies 
+if(gsap) {
+  gsap.registerPlugin(useGSAP); // register the hook to avoid React version discrepancies 
+}
 
 /* ----------------------------- Components ----------------------------- */
 import {
